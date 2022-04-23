@@ -229,6 +229,8 @@
             // focus on ticker number input
             document.getElementById('ticket_number').focus();
             }
+
+            setCookie('tickets', JSON.stringify(tickets), 30)
     }
 
     function clearErrors() {
@@ -471,10 +473,46 @@
         return 4294967296 * (2097151 & h2) + (h1>>>0);
     };
 
+    // cookies
+    function setCookie(cname, cvalue, exdays) {
+        const d = new Date();
+        d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+        let expires = "expires="+d.toUTCString();
+        document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+    }
+
+    function getCookie(cname) {
+        let name = cname + "=";
+        let ca = document.cookie.split(';');
+        for(let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) == ' ') {
+                c = c.substring(1);
+                }
+                if (c.indexOf(name) == 0) {
+                return c.substring(name.length, c.length);
+            }
+        }
+        return "";
+    }
+
+    function loadCookies() {
+        try {
+            let tickets_saved = JSON.parse(getCookie("tickets"));
+            if (Object.keys(tickets_saved).length > 0) {
+                tickets = tickets_saved;
+                generateTable();
+            }
+        } catch {
+
+        }
+    }
+
     // main
     let items = {1: "Chocolate", 2: "Rose", 3: "Serenade", 4: "Special Serenade"};
     let tickets = {};
     let is_file_loaded = false;
     setPeriodVisibility(false);
+    loadCookies();
 </script>
 </html>
