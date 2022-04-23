@@ -25,7 +25,7 @@ One person needs to be the host, and everyone else is an inputter.
 
 ## Instructions for Inputter
 1. The host should have sent you a file called *student_names.json*. Save this file.
-2. Go to statehigh.github.io/vdayticketing/
+2. Go to https://statehigh.github.io/vdayticketing/
 3. Load the *student_names.json* file you had just saved.
 4. Add every ticket you have.
 5. Press the download button and send the file you downloaded to the host.
