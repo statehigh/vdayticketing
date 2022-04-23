@@ -29,8 +29,7 @@ for file_name in glob("timetables/*.csv"):
                 arc_class = re.search(arc_class_format, row[0]).group(0)
                 student_id = f"{student_name} [{arc_class}]"
 
-                ticket['StudentName'] = student_name
-                ticket['StudentID'] = student_id
+                ticket['StudentName'] = student_id
 
                 # print(student_name, arc_class)
                 for period, period_column in enumerate(period_columns):
@@ -61,14 +60,14 @@ for file_name in glob("timetables/*.csv"):
 
 # write classes to csv
 with open('students_classes.csv', 'w') as file:
-    fieldnames = ["StudentID", "StudentName", "P1", "P2", "P3", "P4"]
+    fieldnames = ["StudentName", "P1", "P2", "P3", "P4"]
     writer = csv.DictWriter(file, fieldnames)
     for ticket in tickets:
         writer.writerow(ticket)
 
 # write only names to json so that ticket inputter use them
 with open('student_names.json', 'w') as file:
-    name_list = [ticket['StudentID'] for ticket in tickets]
+    name_list = [ticket['StudentName'] for ticket in tickets]
     json.dump(name_list, file, indent=4)
 
 # longest name:
