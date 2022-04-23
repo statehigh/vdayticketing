@@ -224,13 +224,11 @@
 
             clearErrors();
             clearForm();
-            generateTable();
+            updateTickets();
 
             // focus on ticker number input
             document.getElementById('ticket_number').focus();
             }
-
-            setCookie('tickets', JSON.stringify(tickets), 30)
     }
 
     function clearErrors() {
@@ -259,12 +257,16 @@
         setPeriodVisibility(false);
     }
 
-    function generateTable() {
+    function updateTickets() {
+        // save tickets to cookie
+        setCookie('tickets', JSON.stringify(tickets), 30)
+
         // clear table
         for (let element of document.querySelectorAll('td')) {
             element.remove();
         }
 
+        // generate HTML table to represent tickets
         let table = document.getElementById('tickets');
 
         if (Object.keys(tickets).length > 0) {
@@ -297,12 +299,12 @@
     
     function deleteTicket(ticket_number) {
         delete tickets[ticket_number];
-        generateTable();
+        updateTickets();
     }
 
     function clearTickets() {
         tickets = {};
-        generateTable();
+        updateTickets();
     }
 
     function validateFileLoaded() {
@@ -501,7 +503,7 @@
             let tickets_saved = JSON.parse(getCookie("tickets"));
             if (Object.keys(tickets_saved).length > 0) {
                 tickets = tickets_saved;
-                generateTable();
+                updateTickets();
             }
         } catch {
 
