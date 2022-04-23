@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Inputter</title>
+    <script type="text/javascript" src="static/jquery-3.6.0.min.js"></script>
+    <script type="text/javascript" src="static/chosen.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="static/chosen.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
+            margin: 0%;
+            background-color: white;
+            color: #222222;
+        }
+        h1 {
+            margin-top: 5px;
+            margin-bottom: 5px;
+            font-weight: lighter;
+        }
+        h3 {
+            margin-bottom: 0%;
+            margin-top: 5px;
+            font-weight: normal;
+        }
+        p.error {
+            font-size: small;
+            color: red;
+            visibility: hidden;
+            font-size: 11px;
+            margin-bottom: 3px;
+        }
+        p {
+            margin-top: 0%;
+            margin-bottom: 0%;
+            font-size: 13px;
+        }
+        table, tr, th, td {
+            border: 1px solid;
+        }
+        th, td {
+            padding: 2px;
+        }
+        table {
+            border-collapse: collapse;
+        }
+        div.content {
+            display: inline-block;
+            padding: 30px;
+            background-color: white;
+        }
+        input[type=number] {
+            min-width: 50px;
+        }
+        #title {
+            width: 100%;
+            top: 0px;
+            background-color: #c60063;
+            color: white;
+            padding: 12px;
+            font-size: 24px;
+        }
+        #ticket_form {
+            float: left;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="title">State High Valentine's Day Ticketing System</div>
+    <div>
+        <div class="content" id="ticket_form">
+            <h1>Setup</h1>
+            <h3>Name List</h3>
+            <p>Please load name list first</p>
+            <input type="file" id="file" onchange="loadFile(this.files[0])">
+            <p class="error" id="file_error">Please do this first</p>
+            <h3>Fast Mode</h3>
+            <p>Only require keyboard to input values. <br> For high speed, use numpad, tab, and enter.</p>
+            <input type="checkbox" id="fast_mode" onclick="setFastMode()">
+            <label for="fast_mode">Enable?</label>
+
+            <h1>Add Tickets</h1>
+
+            <h3>Ticket Number</h3>
+            <input type="number" min="1" max="9999" id="ticket_number">
+            <p class="error" id="ticket_number_error">*Required</p>
+
+            <h3>Item Type</h3>
+            <div class="slow">
+                <input type="radio" id="chocolate" name="item_type" value="Chocolate" onclick="setPeriodVisibility(false)">
+                <label for="chocolate">Chocolate</label> <br>
+                <input type="radio" id="rose" name="item_type" value="Rose" onclick="setPeriodVisibility(false)">
+                <label for="rose">Rose</label> <br>
+                <input type="radio" id="serenade" name="item_type" value="Serenade" onclick="setPeriodVisibility(false)">
+                <label for="serenade">Serenade</label> <br>
+                <input type="radio" id="special_serenade" name="item_type" value="Special Serenade" onclick="setPeriodVisibility(true)">
+                <label for="special_serenade">Special Serenade</label> <br>
+            </div>
+            <div hidden class="fast">
+                <input id="item_type_fast" type="number" min="1" max="4" onchange="setPeriodVisibility(this.value == 4)">
+            </div>
+            <p class="error" id="item_type_error">*Required</p>
+
+            <h3 class="period">Period</h3>
+            <div class="slow">
+                <input class="period" type="radio" id="1" name="period" value="1">
+                <label class="period" for="1">1</label> <br class="period">
+                <input class="period" type="radio" id="2" name="period" value="2">
+                <label class="period" for="2">2</label> <br class="period">
+                <input class="period" type="radio" id="3" name="period" value="3">
+                <label class="period" for="3">3</label> <br class="period">
+                <input class="period" type="radio" id="4" name="period" value="4">
+                <label class="period" for="4">4</label> <br class="period">
+            </div>
+            <div hidden class="fast">
+                <input id="period_fast" class="period" type="number" min="1" max="4">
+            </div>
+            <p class="period error" id="period_error">*Required</p>
+            
+            <h3>Recipient Name</h3>
+            <select id="recipient_name" style="min-width: 100px;">
+            </select>
+            <p class="error" id="recipient_name_error">*Required</p>
+
+            <button type="button" id="submit" onclick="addTicket()">Add Ticket</button>
+        </div>
+        <div class="content" id="ticket_info">
+            <h1>Current Tickets</h1>
+            <button type="button" id="download" onclick="downloadTickets()">Download</button>
+            <table id="tickets">
+                <tr>
+                    <th>Ticket Number</th>
+                    <th>Recipient Name</th>
+                    <th>Item Type</th>
+                    <th>Period</th>
+                </tr>
+                <tr id="placeholder_row">
+                    <td><br></td>
+                    <td><br></td>
+                    <td><br></td>
+                    <td><br></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+<script>
+    async function loadFile(file) {
+        let file_label = document.getElementById('file_error');
+        // tries to load JSON. if not JSON, raise error
+        try {
+            let text = await file.text();
+            var names = JSON.parse(text);
+        } catch {
+            is_file_loaded = false;
+            return;
+        }
+        // load names into dropdown
+        let dropdown = document.getElementById('recipient_name');
+        dropdown.add(document.createElement("option"));
+        for (let name of names) {
+            let option = document.createElement("option");
+            option.text = name;
+            dropdown.add(option);
+        }
+        $('#recipient_name').chosen();
+        is_file_loaded = true;
+        validateFileLoaded();
+    }
+
+    function addTicket() {
+        validateFileLoaded();
+        let ticket_number = getTicketNumber();
+        let item_type = getItemType();
+        let recipient_name = getRecipientName();
+        let period = "";
+        if (item_type == "Special Serenade") {
+            period = getPeriod();
+            if (!period) return;
+        }
+        if (ticket_number && item_type && recipient_name) {
+            // add ticket to dict
+            tickets[ticket_number] = {'Recipient Name': recipient_name, 'Item Type': item_type, 'Period': period};
+
+            clearErrors();
+            clearForm();
+
+            // add to table
+            let table = document.getElementById('tickets');
+            let row = table.insertRow(-1);
+            let ticket_number_row = row.insertCell(0);
+            ticket_number_row.innerHTML = ticket_number;
+            let recipient_name_row = row.insertCell(1);
+            recipient_name_row.innerHTML = recipient_name;
+            let item_type_row = row.insertCell(2);
+            item_type_row.innerHTML = item_type;
+            let period_row = row.insertCell(3);
+            period_row.innerHTML = period;
+            
+            // delete placeholder row
+            let placeholder = document.getElementById('placeholder_row');
+            if (placeholder) placeholder.remove();
+
+            // focus on ticker number input
+            document.getElementById('ticket_number').focus();
+            }
+    }
+
+    function clearErrors() {
+        document.getElementById('ticket_number_error').style.visibility = "hidden";
+        document.getElementById('item_type_error').style.visibility = "hidden";
+        document.getElementById('ticket_number_error').style.visibility = "hidden";
+        document.getElementById('period_error').style.visibility = "hidden";
+    }
+
+    function clearForm() {
+        document.getElementById('ticket_number').value = "";
+        if (fast_mode()) {
+            document.getElementById('item_type_fast').value = "";
+            document.getElementById('period_fast').value = "";
+        } else {
+            $('#recipient_name').val('').trigger('chosen:updated');
+            let period_elements = document.querySelectorAll('input[name="period"]');
+            for (let i=0; i < period_elements.length; i++) {
+                period_elements[i].checked = false;
+            }
+            let item_type_elements = document.querySelectorAll('input[name="item_type"]');
+            for (let i=0; i < item_type_elements.length; i++) {
+                item_type_elements[i].checked = false;
+            }
+        }
+        setPeriodVisibility(false);
+    }
+    
+    function validateFileLoaded() {
+        let file_label = document.getElementById('file_error')
+        file_label.style.visibility = "visible";
+        if (is_file_loaded) {
+            file_label.innerText = "Successfully loaded!"
+            file_label.style.color = "green";
+        } else {
+            file_label.innerHTML = "Failed to load name list.";
+            file_label.style.color = "red";
+        }
+    }
+
+    function getTicketNumber() {
+        let ticket_number = document.getElementById('ticket_number').value;
+        if (Number(ticket_number) > 0) {
+            document.getElementById('ticket_number_error').style.visibility = "hidden";
+            return ticket_number;
+        } else {
+            document.getElementById('ticket_number_error').style.visibility = "visible";
+        }
+    }
+
+    function getItemType() {
+        if (fast_mode()) {
+            let item_type = document.getElementById('item_type_fast');
+            if (item_type) {
+                document.getElementById('item_type_error').style.visibility = "hidden";
+                return items[item_type.value];
+            } else {
+                document.getElementById('item_type_error').style.visibility = "visible";
+                return false;
+            }
+        } else {
+            let item_type = document.querySelector('input[name="item_type"]:checked');
+            if (item_type) {
+                document.getElementById('item_type_error').style.visibility = "hidden";
+                return item_type.value;
+            } else {
+                document.getElementById('item_type_error').style.visibility = "visible";
+                return false;
+            }
+        }
+    }
+
+    function getRecipientName() {
+        let recipient_name = document.getElementById('recipient_name').value;
+        if (recipient_name != "") {
+            document.getElementById('recipient_name_error').style.visibility = "hidden";
+            return recipient_name;
+        } else {
+            document.getElementById('recipient_name_error').style.visibility = "visible";
+        }
+    }
+
+    function getPeriod() {
+        let period = document.querySelector('input[name="period"]:checked');
+        if (period) {
+            document.getElementById('period_error').style.visibility = "hidden";
+            return period.value;
+        } else {
+            document.getElementById('period_error').style.visibility = "visible";
+            return "";
+        }
+    }
+
+    function setPeriodVisibility(visible) {
+        let period_elements = document.querySelectorAll('.period');
+        if (visible) {
+            for (let i=0; i < period_elements.length; i++) {
+                period_elements[i].hidden = false;
+            }
+        } else {
+            for (let i=0; i < period_elements.length; i++) {
+                period_elements[i].hidden = true;
+            }
+        }
+    }
+
+    function setFastMode() {
+        if (fast_mode()) {
+            for (let element of document.querySelectorAll('div[class="slow"]')) element.hidden = true;
+            for (let element of document.querySelectorAll('div[class="fast"]')) element.hidden = false;
+        } else {
+            // show fast elements
+            for (let element of document.querySelectorAll('div[class="slow"]')) element.hidden = false;
+            for (let element of document.querySelectorAll('div[class="fast"]')) element.hidden = true;
+
+            // ensure period visibility is correct
+            let item_type = document.querySelector('input[name="item_type"]:checked');
+            if (item_type && item_type.value === "Special Serenade")  {
+                setPeriodVisibility(item_type.value === "Special Serenade");
+            } else {
+                setPeriodVisibility(false);
+            }
+        }
+    }
+
+    function download(data, filename, type) {
+        var file = new Blob([data], {type: type});
+        if (window.navigator.msSaveOrOpenBlob) // IE10+
+            window.navigator.msSaveOrOpenBlob(file, filename);
+        else { // Others
+            var a = document.createElement("a"),
+                    url = URL.createObjectURL(file);
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);  
+            }, 0); 
+        }
+    }
+
+    function downloadTickets() {
+        if (Object.keys(tickets).length > 0) {
+            download(JSON.stringify(tickets), "ASD", "application/json");
+        }
+    }
+
+    function fast_mode() {
+        return document.getElementById('fast_mode').checked;
+    }
+
+    // main
+    let items = {1: "Chocolate", 2: "Rose", 3: "Serenade", 4: "Special Serenade"};
+    let tickets = {};
+    let is_file_loaded = false;
+    setPeriodVisibility(false);
+</script>
+</html>
