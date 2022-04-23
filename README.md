@@ -18,7 +18,8 @@ One person needs to be the host, and everyone else is an inputter.
 10. Run the *ticket_sorter.py* script, which should generate some files inside the *output* folder: *tickets_sorted.csv* and a bunch of CSV files corresponding to each group.
 11. Using *tickets_sorted.csv*, physically sort every ticket into piles (this may take a while). The file contains every ticket and the corresponding group it belongs to in order of ticket number (if the group is a number, it is a serenading group; if it is a letter, it is a non-serenading group). Make sure each pile is labelled with the group it corresponds to.
 12. For each pile, look at the corresponding CSV file (e.g., *A.csv*) and sort the tickets into the order shown in the file. It groups tickets by period and sorts them by geographical location, while also prioritising special serenades.
-13. That's it.
+13. Contemplate if spending several hours of your life on this was worth it.
+14. That's it.
 
 ## Instructions for Inputter
 1. The host should have sent you a file called *student_names.json*. Save this file.
