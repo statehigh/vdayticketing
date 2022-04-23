@@ -276,7 +276,6 @@
                 ticket_number_row.innerHTML = ticket_number;
 
                 // add other properties
-                console.log(Object.keys(ticket));
                 for (let i = 0; i < Object.keys(ticket).length; i++) {
                     let property = Object.keys(ticket)[i];
                     let property_row = row.insertCell(i + 1);
@@ -396,6 +395,7 @@
         }
     }
 
+    // fast mode functions
     function setFastMode() {
         if (fast_mode()) {
             for (let element of document.querySelectorAll('div[class="slow"]')) element.hidden = true;
@@ -415,6 +415,11 @@
         }
     }
 
+    function fast_mode() {
+        return document.getElementById('fast_mode').checked;
+    }
+
+    // download functions
     function download(data, filename, type) {
         var file = new Blob([data], {type: type});
         if (window.navigator.msSaveOrOpenBlob) // IE10+
@@ -435,13 +440,36 @@
 
     function downloadTickets() {
         if (Object.keys(tickets).length > 0) {
-            download(JSON.stringify(tickets), "ASD", "application/json");
+            let checksum = hash(serialize(tickets)).toString(16).toUpperCase().slice(0, 6);
+            download(JSON.stringify(tickets), `tickets (${checksum}).json`, "application/json");
         }
     }
 
-    function fast_mode() {
-        return document.getElementById('fast_mode').checked;
+    // checksum functions
+    function serialize (obj) {
+        if (Array.isArray(obj)) {
+            return JSON.stringify(obj.map(i => serialize(i)))
+        } else if (typeof obj === 'object' && obj !== null) {
+            return Object.keys(obj)
+            .sort()
+            .map(k => `${k}:${serialize(obj[k])}`)
+            .join('|')
+        }
+
+        return obj
     }
+
+    function hash(str, seed = 0) {
+        let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+        for (let i = 0, ch; i < str.length; i++) {
+            ch = str.charCodeAt(i);
+            h1 = Math.imul(h1 ^ ch, 2654435761);
+            h2 = Math.imul(h2 ^ ch, 1597334677);
+        }
+        h1 = Math.imul(h1 ^ (h1>>>16), 2246822507) ^ Math.imul(h2 ^ (h2>>>13), 3266489909);
+        h2 = Math.imul(h2 ^ (h2>>>16), 2246822507) ^ Math.imul(h1 ^ (h1>>>13), 3266489909);
+        return 4294967296 * (2097151 & h2) + (h1>>>0);
+    };
 
     // main
     let items = {1: "Chocolate", 2: "Rose", 3: "Serenade", 4: "Special Serenade"};
