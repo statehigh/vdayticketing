@@ -18,7 +18,7 @@ One person needs to be the host, and everyone else is an inputter.
 10. Run the script *sort_tickets.py*. [See below](#settings-in-sort_ticketspy) for explanation on what the questions mean.
  - It should generate some files inside the *output* folder: *tickets_sorted.csv* and a bunch of CSV files corresponding to each group.
 12. Using *tickets_sorted.csv*, go through every ticket, writing down the chosen period and sorting it into a pile which corresponds to the group it is allocated to. 
- - The file contains every ticket and the corresponding group it belongs to in order of ticket number (if the group is a number, it is a serenading group; if it is a letter, it is a non-serenading group). 
+ - The file contains every ticket and the corresponding group it belongs to in order of ticket number (groups are numbered, with serenading groups having *S* as a prefix, and non-serenading groups have *N* as a prefix). 
  - Make sure each pile is labelled with the group it corresponds to.
 13. For each pile, look at the corresponding CSV file (e.g., *A.csv*) and sort the tickets into the order shown in the file. 
  - The tickets are grouped by period and sorted by geographical location, with special serenades placed first.
