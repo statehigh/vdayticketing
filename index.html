@@ -134,7 +134,11 @@
                 <label for="special_serenade">Special Serenade</label> <br>
             </div>
             <div hidden class="fast">
-                <input id="item_type_fast" type="number" min="1" max="4" onchange="setPeriodVisibility(this.value == 4)">
+                <input id="item_type_fast" type="text" oninput="setPeriodVisibility(this.value == '4' || this.value.toUpperCase() == 'SS')">
+                <p>1 or "C" = Chocolate</p>
+                <p>2 or "R"= Rose</p>
+                <p>3 or "S" = Serenade</p>
+                <p>4 or "SS" = Special Serenade</p>
             </div>
             <p class="error" id="item_type_error">*Required</p>
 
@@ -240,11 +244,12 @@
 
     function clearForm() {
         document.getElementById('ticket_number').value = "";
+        $('#recipient_name').val('').trigger('chosen:updated');
+
         if (fast_mode()) {
             document.getElementById('item_type_fast').value = "";
             document.getElementById('period_fast').value = "";
         } else {
-            $('#recipient_name').val('').trigger('chosen:updated');
             let period_elements = document.querySelectorAll('input[name="period"]');
             for (let i=0; i < period_elements.length; i++) {
                 period_elements[i].checked = false;
@@ -343,9 +348,20 @@
         if (fast_mode()) {
             let item_type = document.getElementById('item_type_fast');
             if (item_type) {
-                document.getElementById('item_type_error').style.visibility = "hidden";
-                return items[item_type.value];
+                item_type = item_type.value.toUpperCase();
+                if (items.hasOwnProperty(item_type)) {
+                    // if valid item type
+                    document.getElementById('item_type_error').style.visibility = "hidden";
+                    return items[item_type];
+                } else {
+                    // if invalid item type
+                    document.getElementById('item_type_error').innerText = "*Invalid input";
+                    document.getElementById('item_type_error').style.visibility = "visible";
+                    return false;
+                }
+                
             } else {
+                document.getElementById('item_type_error').innerText = "*Required";
                 document.getElementById('item_type_error').style.visibility = "visible";
                 return false;
             }
@@ -355,6 +371,7 @@
                 document.getElementById('item_type_error').style.visibility = "hidden";
                 return item_type.value;
             } else {
+                document.getElementById('item_type_error').innerText = "*Required";
                 document.getElementById('item_type_error').style.visibility = "visible";
                 return false;
             }
@@ -511,7 +528,8 @@
     }
 
     // main
-    let items = {1: "Chocolate", 2: "Rose", 3: "Serenade", 4: "Special Serenade"};
+    let items = {"1": "Chocolate", "2": "Rose", "3": "Serenade", "4": "Special Serenade",
+                 "C": "Chocolate", "R": "Rose", "S": "Serenade", "SS": "Special Serenade"};
     let tickets = {};
     let is_file_loaded = false;
     setPeriodVisibility(false);
