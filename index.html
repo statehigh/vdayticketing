@@ -36,14 +36,18 @@
             margin-bottom: 0%;
             font-size: 13px;
         }
-        table, tr, th, td {
-            border: 1px solid;
-        }
-        th, td {
-            padding: 2px;
-        }
         table {
             border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid;
+            padding: 2px;
+        }
+        .only_left {
+            min-width: 20px;
+            border-right: none;
+            border-top: none;
+            border-bottom: none;
         }
         div.content {
             display: inline-block;
@@ -52,6 +56,33 @@
         }
         input[type=number] {
             min-width: 50px;
+        }
+        i {
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 40%;
+            content: '';
+            display: block;
+        }
+        i:hover {
+            opacity: 90%;
+        }
+        i.delete {
+            height: 20px;
+            width: 20px;
+            background-image: url('static/delete.svg');
+
+        }
+        i.clear {
+            height: 20px;
+            width: 20px;
+            background-image: url('static/clear.svg');
+        }
+        i.download {
+            height: 20px;
+            width: 20px;
+            background-image: url('static/dowload.svg');
+            margin-bottom: 5px;
         }
         #title {
             width: 100%;
@@ -64,6 +95,10 @@
         #ticket_form {
             float: left;
             display: block;
+        }
+        #clear_tickets {
+            float: right;
+            margin-right: 20px;
         }
     </style>
 </head>
@@ -128,19 +163,22 @@
         </div>
         <div class="content" id="ticket_info">
             <h1>Current Tickets</h1>
-            <button type="button" id="download" onclick="downloadTickets()">Download</button>
+            <i class="clear" id="clear_tickets" title="Clear All Tickets" onclick="clearTickets()"></i>
+            <i class="download" id="download" title="Download Tickets" onclick="downloadTickets()"></i>
             <table id="tickets">
                 <tr>
                     <th>Ticket Number</th>
                     <th>Recipient Name</th>
                     <th>Item Type</th>
                     <th>Period</th>
+                    <th class="only_left"></th>
                 </tr>
                 <tr id="placeholder_row">
                     <td><br></td>
                     <td><br></td>
                     <td><br></td>
                     <td><br></td>
+                    <td class="only_left"></td>
                 </tr>
             </table>
         </div>
@@ -186,22 +224,7 @@
 
             clearErrors();
             clearForm();
-
-            // add to table
-            let table = document.getElementById('tickets');
-            let row = table.insertRow(-1);
-            let ticket_number_row = row.insertCell(0);
-            ticket_number_row.innerHTML = ticket_number;
-            let recipient_name_row = row.insertCell(1);
-            recipient_name_row.innerHTML = recipient_name;
-            let item_type_row = row.insertCell(2);
-            item_type_row.innerHTML = item_type;
-            let period_row = row.insertCell(3);
-            period_row.innerHTML = period;
-            
-            // delete placeholder row
-            let placeholder = document.getElementById('placeholder_row');
-            if (placeholder) placeholder.remove();
+            generateTable();
 
             // focus on ticker number input
             document.getElementById('ticket_number').focus();
@@ -233,7 +256,54 @@
         }
         setPeriodVisibility(false);
     }
+
+    function generateTable() {
+        // clear table
+        for (let element of document.querySelectorAll('td')) {
+            element.remove();
+        }
+
+        let table = document.getElementById('tickets');
+
+        if (Object.keys(tickets).length > 0) {
+            // if there is at least a ticket
+            for (let ticket_number of Object.keys(tickets)) {
+                let ticket = tickets[ticket_number];
+                let row = table.insertRow(-1);
+
+                // add ticket number (since it's the key)
+                let ticket_number_row = row.insertCell(0);
+                ticket_number_row.innerHTML = ticket_number;
+
+                // add other properties
+                console.log(Object.keys(ticket));
+                for (let i = 0; i < Object.keys(ticket).length; i++) {
+                    let property = Object.keys(ticket)[i];
+                    let property_row = row.insertCell(i + 1);
+                    property_row.innerHTML = ticket[property];
+                }
+
+                let close = row.insertCell(-1);
+                close.className = "only_left";
+                close.innerHTML = `<i class="delete" onclick="deleteTicket(${ticket_number})">`;
+            }
+        } else {
+            // if there is no tickets, add a placeholder row
+            let placeholder = document.getElementById('placeholder_row');
+            placeholder.innerHTML = " <td><br></td><td><br></td><td><br></td><td><br></td>";
+        }
+    }
     
+    function deleteTicket(ticket_number) {
+        delete tickets[ticket_number];
+        generateTable();
+    }
+
+    function clearTickets() {
+        tickets = {};
+        generateTable();
+    }
+
     function validateFileLoaded() {
         let file_label = document.getElementById('file_error')
         file_label.style.visibility = "visible";
@@ -249,10 +319,20 @@
     function getTicketNumber() {
         let ticket_number = document.getElementById('ticket_number').value;
         if (Number(ticket_number) > 0) {
-            document.getElementById('ticket_number_error').style.visibility = "hidden";
-            return ticket_number;
+            if (!tickets.hasOwnProperty(ticket_number)) {
+                // if ticket not already taken
+                document.getElementById('ticket_number_error').style.visibility = "hidden";
+                return ticket_number;
+            } else {
+                // if ticket number already occupied
+                document.getElementById('ticket_number_error').innerText = "*Already taken";
+                document.getElementById('ticket_number_error').style.visibility = "visible";
+                return false;
+            }
         } else {
+            document.getElementById('ticket_number_error').innerText = "*Required";
             document.getElementById('ticket_number_error').style.visibility = "visible";
+            return false;
         }
     }
 
@@ -289,14 +369,18 @@
     }
 
     function getPeriod() {
-        let period = document.querySelector('input[name="period"]:checked');
-        if (period) {
-            document.getElementById('period_error').style.visibility = "hidden";
-            return period.value;
+        if (fast_mode()) {
+            var period = document.getElementById('period_fast');
         } else {
-            document.getElementById('period_error').style.visibility = "visible";
-            return "";
+            var period = document.querySelector('input[name="period"]:checked');
         }
+        if (period) {
+                document.getElementById('period_error').style.visibility = "hidden";
+                return period.value;
+            } else {
+                document.getElementById('period_error').style.visibility = "visible";
+                return "";
+            }
     }
 
     function setPeriodVisibility(visible) {
