@@ -12,7 +12,7 @@ period_columns = 1, 3, 5, 7
 
 tickets = []
 
-for file_name in glob("student_timetables/*.csv"):
+for file_name in glob("timetables/*.csv"):
     with open(file_name) as file:
         reader = csv.reader(file)
         rows = [row for row in reader if row != ['', '', '', '', '', '', '', '', '']]
