@@ -11,7 +11,7 @@ One person needs to be the host, and everyone else is an inputter.
 3. Download each year level timetable as a PDF (will require a teacher).
 4. Using [Adobe Acrobat](https://www.adobe.com/au/acrobat/online/pdf-to-excel.html), convert the PDFs to Excel files.
 5. Open the files in Excel and [convert them to CSV files](https://support.microsoft.com/en-us/office/import-or-export-text-txt-or-csv-files-5250ac4c-663c-47ce-937b-339e391393ba).
-6. Place CSV files in folder called *student_timetables*.
+6. Place CSV files in folder called *timetables*.
 7. [Run the script](https://pythonbasics.org/execute-python-scripts/) *parse_classes.py*, which should generate two files: *student_classes.csv* and *student_names.json*.
 8. Send *student_names.json* to every Inputter and wait for them to return you a tickets list file.
 9. Place the ticket list files into the folder called *tickets*.
