@@ -15,7 +15,7 @@ One person needs to be the host, and everyone else is an inputter.
 7. [Run the script](https://pythonbasics.org/execute-python-scripts/) *parse_classes.py*, which should generate two files: *student_classes.csv* and *student_names.json*.
 8. Send *student_names.json* to every Inputter and wait for them to return you a tickets list file.
 9. Place the ticket list files into the folder called *tickets*.
-10. Run the script *sort_tickets.py*. [See below](settings-in-sort_ticketspy) for explanation on what the questions mean.
+10. Run the script *sort_tickets.py*. [See below](#settings-in-sort_ticketspy) for explanation on what the questions mean.
  - It should generate some files inside the *output* folder: *tickets_sorted.csv* and a bunch of CSV files corresponding to each group.
 12. Using *tickets_sorted.csv*, go through every ticket, writing down the chosen period and sorting it into a pile which corresponds to the group it is allocated to. 
  - The file contains every ticket and the corresponding group it belongs to in order of ticket number (if the group is a number, it is a serenading group; if it is a letter, it is a non-serenading group). 
@@ -23,7 +23,14 @@ One person needs to be the host, and everyone else is an inputter.
 13. For each pile, look at the corresponding CSV file (e.g., *A.csv*) and sort the tickets into the order shown in the file. 
  - The tickets are grouped by period and sorted by geographical location, with special serenades placed first.
 
-### An Explanation of *sort_tickets.py*
+## Instructions for Inputter
+1. The host should have sent you a file called *student_names.json*. Save this file.
+2. Go to statehigh.github.io/vdayticketing/
+3. Load the *student_names.json* file you had just saved.
+4. Add every ticket you have.
+5. Press the download button and send the file you downloaded to the host.
+
+## An Explanation of *sort_tickets.py*
 The ticket sorting algorithm attempts to maximise efficiency by grouping tickets together by class - this minimises the number of classroom visits required (a more technical explanation of how can be found inside the script file). However, maximising efficiency at all costs can result in some classes receiving 20+ tickets at once. Therefore, some limitations were put in place to more evenly distribute the tickets. The limitations are a compromise a more even distribution is less efficient. Hence, they can be adjusted with settings to reach a balance. These settings can be found below.
 
 ## Settings in *sort_tickets.py*
@@ -44,10 +51,3 @@ The ticket sorting algorithm attempts to maximise efficiency by grouping tickets
  - If a regular serenade has no other class it can go to, it will remain. 
  - If there are other special serenades in that class, they cannot be changed and will remain. 
  - In most circumstances, the special serenade will be the only serenade, hence making it *extra special*.
-
-## Instructions for Inputter
-1. The host should have sent you a file called *student_names.json*. Save this file.
-2. Go to statehigh.github.io/vdayticketing/
-3. Load the *student_names.json* file you had just saved.
-4. Add every ticket you have.
-5. Press the download button and send the file you downloaded to the host.
