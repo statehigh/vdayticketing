@@ -10,7 +10,7 @@ One person needs to be the host, and everyone else is an inputter
 2. Install [Python 3.8.9](https://www.python.org/downloads/) or newer
 3. Download each year level timetable as PDF (will require teacher)
 4. Using Adobe Acrobat (or other similar tool), convert PDFs to Excel files
-5. Convert Excel files to CSV files
+5. Open the files in Excel and convert them to CSV files
 6. Place CSV files in folder called *student_timetables*
 7. Run the *student_classes_parser.py* script, which should generate two files: *student_classes.csv* and *student_names.json*
 8. Send *student_names.json* to every Inputter and wait for them to return you a tickets list file
