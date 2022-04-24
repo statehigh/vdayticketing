@@ -5,7 +5,7 @@ One person needs to be the host, and everyone else is an inputter.
 - Host: sets up the system and runs the scripts.
 - Inputter: inputs the tickets into the systems.
 
-If you would like to test the system, you can run *generate_dataset.py* to generate a fake dataset of people, timetables and tickets.
+If you would like to test the system, you can run *generate_dataset.py* to generate a fake dataset of timetables and tickets.
 
 ## Instructions for Host
 1. Download this repository.
