@@ -4,6 +4,7 @@ import csv
 import json
 from glob import glob
 from itertools import groupby
+from directory_names import Folders, Files
 
 
 class Ticket:
@@ -703,10 +704,10 @@ def get_bool(prompt: str) -> bool:
 
 
 def load_tickets() -> dict:
-    file_names = glob('tickets/*.json')
+    file_names = glob(f'{Folders.tickets}*.json')
     if len(file_names) < 1:
         print("ERROR: No ticket files detected.")
-        input("Press enter to exit.")
+        input("Press enter to acknowledge.")
 
     tickets_json = {}
     for file_name in file_names:
@@ -723,15 +724,15 @@ def load_tickets() -> dict:
 
 def load_classes() -> dict:
     classes = {}
-    if os.path.exists('students_classes.csv'):
-        with open('students_classes.csv') as file:
+    if os.path.exists(Files.student_classes):
+        with open(Files.student_classes) as file:
             reader = csv.reader(file)
             for line in reader:
                 classes[line[0]] = {'P1': line[1], 'P2': line[2], 'P3': line[3], 'P4': line[4]}
         return classes
     else:
-        print("ERROR: students_classes.csv not detected")
-        input("Press enter to exit.")
+        print(f"ERROR: {Files.student_classes} not detected")
+        input("Press enter to acknowledge.")
 
 
 def create_tickets(tickets_json: dict, classes: dict):
@@ -764,10 +765,7 @@ def main():
     ticket_sorter = TicketSorter(tickets, num_serenading_groups, num_non_serenading_groups, max_serenades_per_class,
                                  max_non_serenades_per_class, extra_special_serenades)
 
-    if not os.path.exists('output'):
-        os.mkdir('output')
-
-    with open("output/tickets_sorted.csv", 'w') as file:
+    with open(f"{Folders.output}{Files.tickets_sorted}", 'w') as file:
         fieldnames = ["Ticket Number", "Chosen Period", "Chosen Classroom", "Recipient Name",
                       "Item Type", "P1", "P2", "P3", "P4"]
         writer = csv.DictWriter(file, fieldnames)
@@ -778,14 +776,14 @@ def main():
             writer.writerow(ticket.as_dict())
 
     for number, group in enumerate(ticket_sorter.output_serenading_groups_tickets):
-        with open(f"output/S{number + 1}.csv", 'w') as file:
+        with open(f"{Folders.output}/S{number + 1}.csv", 'w') as file:
             writer = csv.DictWriter(file, fieldnames=fieldnames)
             writer.writeheader()
             for ticket in group:
                 writer.writerow(ticket.as_dict())
 
     for number, group in enumerate(ticket_sorter.output_non_serenading_groups_tickets):
-        with open(f"output/N{number + 1}.csv", 'w') as file:
+        with open(f"{Folders.output}/N{number + 1}.csv", 'w') as file:
             writer = csv.DictWriter(file, fieldnames=fieldnames)
             writer.writeheader()
             for ticket in group:

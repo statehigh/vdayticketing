@@ -2,6 +2,7 @@ from glob import glob
 import json
 import csv
 import re
+from directory_names import Folders, Files
 
 """Settings"""
 name_half = r"([a-zA-Z\s\'\(\)-]+)"
@@ -12,7 +13,7 @@ period_columns = 1, 3, 5, 7
 
 tickets = []
 
-for file_name in glob("timetables/*.csv"):
+for file_name in glob(f"{Folders.timetables}*.csv"):
     with open(file_name) as file:
         reader = csv.reader(file)
         rows = [row for row in reader if row != ['', '', '', '', '', '', '', '', '']]
@@ -59,14 +60,14 @@ for file_name in glob("timetables/*.csv"):
                 pass
 
 # write classes to csv
-with open('students_classes.csv', 'w') as file:
+with open(Files.student_classes, 'w') as file:
     fieldnames = ["StudentName", "P1", "P2", "P3", "P4"]
     writer = csv.DictWriter(file, fieldnames)
     for ticket in tickets:
         writer.writerow(ticket)
 
 # write only names to json so that ticket inputter use them
-with open('student_names.json', 'w') as file:
+with open(Files.student_names, 'w') as file:
     name_list = [ticket['StudentName'] for ticket in tickets]
     json.dump(name_list, file, indent=4)
 
