@@ -25,7 +25,6 @@ class Files:
 
 class Examples:
     def __init__(self, checksum: str):
-        self.student_names = f"EXAMPLE_{checksum}_student_names.json"
         self.tickets = f"EXAMPLE_{checksum}_tickets.json"
         self.timetables = f"EXAMPLE_{checksum}_timetable.csv"
 
