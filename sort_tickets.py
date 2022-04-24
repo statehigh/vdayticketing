@@ -13,6 +13,7 @@ class Ticket:
         self.ticket_number = ticket_number
         self.recipient_name = recipient_name
         self.item_type = item_type
+        self.group = None
 
         # where the recipient's classes are for each period don't rename or else setattr() will break
         self.p1 = p1
@@ -58,9 +59,10 @@ class Ticket:
         return True
 
     def as_dict(self):
-        return {"Ticket Number": self.ticket_number, "Chosen Period": self.chosen_period,
-                "Chosen Classroom": self.chosen_classroom, "Recipient Name": self.recipient_name,
-                "Item Type": self.item_type, "P1": self.p1, "P2": self.p2, "P3": self.p3, "P4": self.p4}
+        return {"Ticket Number": self.ticket_number, "Recipient Name": self.recipient_name,
+                "Chosen Period": self.chosen_period, "Chosen Classroom": self.chosen_classroom,
+                "Item Type": self.item_type, "Group": self.group,
+                "P1": self.p1, "P2": self.p2, "P3": self.p3, "P4": self.p4}
 
     def __repr__(self):
         # for dev purposes only
@@ -654,8 +656,9 @@ class TicketSorter:
                 num_groups_in_campus = round(num_tickets_in_campus / num_tickets_in_period * num_groups)
 
                 # ensures that each campus has at least 1 group even if it was rounded to 0
-                num_groups_in_campus = min(num_groups_in_campus, num_groups - 1)
-                num_groups_in_campus = max(num_groups_in_campus, 1)
+                if len(upper_lower_classrooms) > 1:
+                    num_groups_in_campus = min(num_groups_in_campus, num_groups - 1)
+                    num_groups_in_campus = max(num_groups_in_campus, 1)
 
                 groups_per_period[period].extend(self.split(classrooms_in_campus, num_groups_in_campus))
 
@@ -666,7 +669,7 @@ class TicketSorter:
         k, m = divmod(len(a), n)
         return list((a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)))
 
-    def get_group_size(self, group):
+    def get_group_size(self, group: list) -> int:
         return sum([len(self.classrooms[classroom]) for classroom in group])
 
     @staticmethod
@@ -755,11 +758,37 @@ def create_tickets(tickets_json: dict, classes: dict):
     return tickets
 
 
+def write_tickets(tickets: list):
+    with open(f"{Folders.output}{Files.tickets_sorted}", 'w') as file:
+        fieldnames = ["Ticket Number", "Chosen Period", "Chosen Classroom", "Group"]
+        writer = csv.DictWriter(file, fieldnames, extrasaction='ignore')
+        writer.writeheader()
+        tickets_sorted_by_number = sorted(tickets, key=lambda a: int(a.ticket_number))
+        for ticket in tickets_sorted_by_number:
+            print(ticket)
+            writer.writerow(ticket.as_dict())
+
+
+def write_group_tickets(tickets: list, group_prefix: str):
+    fieldnames = ["Ticket Number", "Chosen Period", "Chosen Classroom", "Recipient Name",
+                  "Item Type", "P1", "P2", "P3", "P4"]
+    for number, group in enumerate(tickets):
+        group_name = f"{group_prefix}{number + 1}"
+        with open(f"{Folders.output}{group_name}.csv", 'w') as file:
+            writer = csv.DictWriter(file, fieldnames=fieldnames, extrasaction='ignore')
+            writer.writeheader()
+            for ticket in group:
+                ticket.group = group_name
+                writer.writerow(ticket.as_dict())
+
+
 def main():
+    # load data
     tickets_json = load_tickets()
     classes = load_classes()
     tickets = create_tickets(tickets_json, classes)
 
+    # get options
     num_serenading_groups = get_int("Number of Serenading Groups: ")
     num_non_serenading_groups = get_int("Number of Non-Serenading Groups: ")
     max_serenades_per_class = get_int("Maximum number of serenades per class: ")
@@ -767,32 +796,23 @@ def main():
                                           "(only if class has at least one serenade):")
     extra_special_serenades = get_bool("Prevent special serenades from being grouped with regular serenades? (Y/N)")
 
+    # sort the tickets
     ticket_sorter = TicketSorter(tickets, num_serenading_groups, num_non_serenading_groups, max_serenades_per_class,
                                  max_non_serenades_per_class, extra_special_serenades)
 
-    with open(f"{Folders.output}{Files.tickets_sorted}", 'w') as file:
-        fieldnames = ["Ticket Number", "Chosen Period", "Chosen Classroom", "Recipient Name",
-                      "Item Type", "P1", "P2", "P3", "P4"]
-        writer = csv.DictWriter(file, fieldnames)
-        writer.writeheader()
-        tickets_sorted_by_number = sorted(ticket_sorter.tickets, key=lambda a: int(a.ticket_number))
-        for ticket in tickets_sorted_by_number:
-            print(ticket)
-            writer.writerow(ticket.as_dict())
+    # delete existing tickets if they already exist
+    files = [f for f in os.listdir(Folders.output) if os.path.isfile(os.path.join(Folders.output, f))]
+    if len(files) > 0:
+        print("WARNING: Residue output files have been detected (likely from a previous run). "
+              "These files will be deleted if you continue. Stop the script now if you would like to keep them.")
+        input("Press enter to continue...")
+        for file in files:
+            os.remove(f"{Folders.output}{file}")
 
-    for number, group in enumerate(ticket_sorter.output_serenading_groups_tickets):
-        with open(f"{Folders.output}/S{number + 1}.csv", 'w') as file:
-            writer = csv.DictWriter(file, fieldnames=fieldnames)
-            writer.writeheader()
-            for ticket in group:
-                writer.writerow(ticket.as_dict())
-
-    for number, group in enumerate(ticket_sorter.output_non_serenading_groups_tickets):
-        with open(f"{Folders.output}/N{number + 1}.csv", 'w') as file:
-            writer = csv.DictWriter(file, fieldnames=fieldnames)
-            writer.writeheader()
-            for ticket in group:
-                writer.writerow(ticket.as_dict())
+    # write tickets
+    write_group_tickets(ticket_sorter.output_serenading_groups_tickets, 'S')
+    write_group_tickets(ticket_sorter.output_non_serenading_groups_tickets, 'N')
+    write_tickets(ticket_sorter.tickets)
 
 
 if __name__ == "__main__":
