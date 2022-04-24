@@ -653,6 +653,10 @@ class TicketSorter:
                 # allocates a number of groups to this campus based on the number of tickets
                 num_groups_in_campus = round(num_tickets_in_campus / num_tickets_in_period * num_groups)
 
+                # ensures that each campus has at least 1 group even if it was rounded to 0
+                num_groups_in_campus = min(num_groups_in_campus, num_groups - 1)
+                num_groups_in_campus = max(num_groups_in_campus, 1)
+
                 groups_per_period[period].extend(self.split(classrooms_in_campus, num_groups_in_campus))
 
         return groups_per_period
@@ -707,7 +711,7 @@ def load_tickets() -> dict:
     file_names = glob(f'{Folders.tickets}*.json')
     if len(file_names) < 1:
         print("ERROR: No ticket files detected.")
-        input("Press enter to acknowledge.")
+        input("Press enter to acknowledge...")
 
     tickets_json = {}
     for file_name in file_names:
@@ -731,8 +735,9 @@ def load_classes() -> dict:
                 classes[line[0]] = {'P1': line[1], 'P2': line[2], 'P3': line[3], 'P4': line[4]}
         return classes
     else:
-        print(f"ERROR: {Files.student_classes} not detected")
-        input("Press enter to acknowledge.")
+        print(f"ERROR: {Files.student_classes} not detected. "
+              f"Have you run parse_classes.py yet? You must do so before you run this script.")
+        input("Press enter to acknowledge...")
 
 
 def create_tickets(tickets_json: dict, classes: dict):
