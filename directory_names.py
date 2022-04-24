@@ -2,7 +2,7 @@ import os
 
 
 class Folders:
-    static_website_resources = "static/"        # files used for the website. should not be modified
+    static = "static/"                          # read-only files
     timetables = "timetables/"                  # list of csv files with timetables of each year level
     tickets = "tickets/"                        # list of csv files representing tickets inputted using the website
     output = "output/"                          # the csv files containing the sorted tickets
@@ -21,6 +21,12 @@ class Files:
     student_names = "student_names.json"        # a list of names which you load into the ticket inputter website
     student_classes = "student_classes.csv"     # the csv file containing the parsed timetables of each year level
     tickets_sorted = "tickets_sorted.csv"       # the master list of all the tickets with their period chosen
+
+
+class Examples:
+    student_names = "EXAMPLE_student_names.json"
+    tickets = "EXAMPLE_tickets.json"
+    timetables = "EXAMPLE_timetable.csv"
 
 
 Folders().verify_dirs__()
