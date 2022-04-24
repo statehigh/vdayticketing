@@ -1,10 +1,9 @@
+import re
 import csv
 import json
 import random
+import sys
 from directory_names import Folders, Examples
-
-grades = [7, 8, 9, 10, 11, 12]
-class_letters = "ABCDEFGHIJKLMNOPQRST"
 
 
 def generate_names(num_names: int):
@@ -15,13 +14,16 @@ def generate_names(num_names: int):
     with open(f'{Folders.static}first_names.json') as file:
         first_names = json.load(file)
 
+    grades = [7, 8, 9, 10, 11, 12]
+    class_letters = "ABCDEFGHIJKLMNOPQRST"
+
     for i in range(num_names):
         name = f"{random.choice(first_names)} {random.choice(last_names)} " \
                f"[{random.choice(grades)}{random.choice(class_letters)}]"
         names.append(name)
 
-    with open(Examples.student_names, 'w') as file:
-        json.dump(names, file)
+    with open(examples.student_names, 'w') as file:
+        json.dump(names, file, indent=4)
 
 
 def generate_timetables():
@@ -34,7 +36,7 @@ def generate_timetables():
     def generate_teacher():
         return "".join(random.choices(letters, k=6))
 
-    with open(Examples.student_names) as file:
+    with open(examples.student_names) as file:
         names = json.load(file)
 
     blocks = "ABCDEFGIJP"
@@ -42,19 +44,19 @@ def generate_timetables():
     classes = range(1, 10)
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-    with open(f'{Folders.timetables}{Examples.timetables}', 'w') as file:
+    with open(f'{Folders.timetables}{examples.timetables}', 'w') as file:
         writer = csv.writer(file)
         for name in names:
             first_name = name.split(' ')[0]
             last_name = name.split(' ')[1]
-            year = str(random.choice(grades))
-            letter = random.choice(class_letters)
-            arc_class = f"{year}{letter}"
-            writer.writerow([f"{last_name}, {first_name}, , Year {year}, {arc_class}",
-                             f"{generate_class(year, letter)}\n{generate_teacher()} {generate_classroom()}", "",
-                             f"{generate_class(year, letter)}\n{generate_teacher()} {generate_classroom()}", "",
-                             f"{generate_class(year, letter)}\n{generate_teacher()} {generate_classroom()}", "",
-                             f"{generate_class(year, letter)}\n{generate_teacher()} {generate_classroom()}"])
+            grade = re.search(r"\[(\d\d?)", name).group(1)
+            class_letter = re.search(r"([A-Z])]", name).group(1)
+            arc_class = f"{grade}{class_letter}"
+            writer.writerow([f"{last_name}, {first_name}, , Year {grade}, {arc_class}",
+                             f"{generate_class(grade, class_letter)}\n{generate_teacher()} {generate_classroom()}", "",
+                             f"{generate_class(grade, class_letter)}\n{generate_teacher()} {generate_classroom()}", "",
+                             f"{generate_class(grade, class_letter)}\n{generate_teacher()} {generate_classroom()}", "",
+                             f"{generate_class(grade, class_letter)}\n{generate_teacher()} {generate_classroom()}"])
 
 
 def generate_tickets():
@@ -62,7 +64,7 @@ def generate_tickets():
     periods = [1, 2, 3, 4]
 
     tickets = {}
-    with open(Examples.student_names) as file:
+    with open(examples.student_names) as file:
         names = json.load(file)
         for number, name in enumerate(names):
             if random.random() < 0.5:
@@ -73,8 +75,8 @@ def generate_tickets():
                     chosen_period = ""
                 tickets[number] = {"Recipient Name": name, "Item Type": item_type, "Period": chosen_period}
 
-    with open(f'{Folders.tickets}{Examples.tickets}', 'w') as file:
-        json.dump(tickets, file)
+    with open(f'{Folders.tickets}{examples.tickets}', 'w') as file:
+        json.dump(tickets, file, indent=4)
 
 
 def main():
@@ -84,4 +86,7 @@ def main():
 
 
 if __name__ == "__main__":
+    seed = random.randrange(sys.maxsize)
+    checksum = str(hex(seed))[2:6].upper()
+    examples = Examples(checksum)
     main()

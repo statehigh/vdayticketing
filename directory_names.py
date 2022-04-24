@@ -24,9 +24,10 @@ class Files:
 
 
 class Examples:
-    student_names = "EXAMPLE_student_names.json"
-    tickets = "EXAMPLE_tickets.json"
-    timetables = "EXAMPLE_timetable.csv"
+    def __init__(self, checksum: str):
+        self.student_names = f"EXAMPLE_{checksum}_student_names.json"
+        self.tickets = f"EXAMPLE_{checksum}_tickets.json"
+        self.timetables = f"EXAMPLE_{checksum}_timetable.csv"
 
 
 Folders().verify_dirs__()
