@@ -108,7 +108,7 @@
         <div class="content" id="ticket_form">
             <h1>Setup</h1>
             <h3>Name List</h3>
-            <p>Please load name list first</p>
+            <p>Please load student_classes.json</p>
             <input type="file" id="file" onchange="loadFile(this.files[0])">
             <p class="error" id="file_error">Please do this first</p>
             <h3>Fast Mode</h3>
@@ -208,6 +208,7 @@
             dropdown.add(option);
         }
         $('#recipient_name').chosen();
+        document.querySelector('input[class="chosen-search-input"]').autocomplete = "tel-extension";
         is_file_loaded = true;
         validateFileLoaded();
     }
