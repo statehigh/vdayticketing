@@ -5,8 +5,6 @@ One person needs to be the host, and everyone else is an inputter.
 - Host: sets up the system and runs the scripts.
 - Inputter: inputs the tickets into the systems.
 
-If you would like to test the system, you can run *generate_dataset.py* to generate a fake dataset of people, timetables and tickets.
-
 ## Instructions for Host
 1. Download this repository.
 2. Install [Python 3.8.9](https://www.python.org/downloads/) or newer.
@@ -57,3 +55,9 @@ The ticket sorting algorithm attempts to maximise efficiency by grouping tickets
  - If a regular serenade has no other class it can go to, it will remain. 
  - If there are other special serenades in that class, they cannot be changed and will remain. 
  - In most circumstances, the special serenade will be the only serenade, hence making it *extra special*.
+
+## Test Run
+You can run *generate_dataset.py* to generate a fake dataset of timetables and tickets. In this case, the steps are reduced to:
+1. Run *generate_dataset.py*
+2. Run *parse_classes.py*
+3. Rum *sort_tickets.py*
