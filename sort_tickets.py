@@ -639,28 +639,38 @@ class TicketSorter:
                     [ticket for classroom in classrooms_in_period for ticket in self.classrooms[classroom]])
 
             # splits the classrooms into two groups based on if they are upper or lower campus
-            upper_lower_classrooms = [list(classrooms_in_campus) for key, classrooms_in_campus in
-                                      groupby(classrooms_in_period, key=lambda classroom:
-                                      ord(classroom[2].upper()) > self.LAST_UPPER_CAMPUS_BLOCK_ASCII_CODE)]
-
-            for campus, classrooms_in_campus in enumerate(upper_lower_classrooms):
-                # if campus == 0, upper campus
-                # if campus == 1, lower campus
-                classrooms_in_campus = list(classrooms_in_campus)
-
+            # index = 0 is upper campus, index = 1 is lower campus
+            classrooms_per_campus = [list(classrooms_in_campus) for key, classrooms_in_campus in
+                                     groupby(classrooms_in_period, key=lambda classroom:
+                                     ord(classroom[2].upper()) > self.LAST_UPPER_CAMPUS_BLOCK_ASCII_CODE)]
+            num_tickets_per_campus = []
+            num_groups_per_campus = []
+            for classrooms_in_campus in classrooms_per_campus:
                 # gets the number of tickets in this campus
                 num_tickets_in_campus = len(
                     [ticket for classroom in classrooms_in_campus for ticket in self.classrooms[classroom]])
+                num_tickets_per_campus.append(num_tickets_in_campus)
 
                 # allocates a number of groups to this campus based on the number of tickets
                 num_groups_in_campus = round(num_tickets_in_campus / num_tickets_in_period * num_groups)
-
                 # ensures that each campus has at least 1 group even if it was rounded to 0
-                if len(upper_lower_classrooms) > 1:
+                if len(classrooms_per_campus) > 1:
                     num_groups_in_campus = min(num_groups_in_campus, num_groups - 1)
                     num_groups_in_campus = max(num_groups_in_campus, 1)
+                num_groups_per_campus.append(num_groups_in_campus)
 
-                groups_per_period[period].extend(self.split(classrooms_in_campus, num_groups_in_campus))
+            # fixes rounding issues
+            if num_groups_per_campus[0] + num_groups_per_campus[1] < num_groups:
+                campus_with_least_groups = min(range(len(num_groups_per_campus)), key=num_groups_per_campus.__getitem__)
+                num_groups_per_campus[campus_with_least_groups] += 1
+            if num_groups_per_campus[0] + num_groups_per_campus[1] > num_groups:
+                campus_with_least_groups = max(range(len(num_groups_per_campus)), key=num_groups_per_campus.__getitem__)
+                num_groups_per_campus[campus_with_least_groups] -= 1
+
+            """This part is highly inefficient because it evenly splits the classrooms without considering how many
+            tickets are inside it"""
+            groups_per_period[period].extend(self.split(classrooms_per_campus[0], num_groups_per_campus[0]))
+            groups_per_period[period].extend(self.split(classrooms_per_campus[1], num_groups_per_campus[1]))
 
         return groups_per_period
 
