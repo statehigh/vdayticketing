@@ -70,6 +70,3 @@ with open(Files.student_classes, 'w') as file:
 with open(Files.student_names, 'w') as file:
     name_list = [student['StudentName'] for student in students]
     json.dump(name_list, file, indent=4)
-
-# longest name:
-# Danthila Jayasinghe Mudiyanselage [7P]
