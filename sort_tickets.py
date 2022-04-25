@@ -119,8 +119,8 @@ class ClassroomNameProcessor:
 
 class TicketSorter:
     def __init__(self, tickets: list, serenading_groups: int, non_serenading_groups: int,
-                 max_serenades_per_class: int = 5, max_non_serenades_per_serenading_class: int = 10,
-                 extra_special_serenades: bool = True):
+                 max_serenades_per_class: int = 5, max_non_serenades_per_serenading_class: int = 0,
+                 extra_special_serenades: bool = True, no_free_loaders: bool = True):
         """Options"""
         # if true, special serenades will not be grouped with regular serenades (ignores non-serenades)
         # if true, more classes need to be visited (not significantly) but periods are more evenly distributed (usually)
@@ -136,6 +136,11 @@ class TicketSorter:
         # if too much work for serenading groups, and not enough for non-serenading groups decrease this number
         # and vice versa
         self.MAX_NON_SERENADES_PER_SERENADING_CLASS = max_non_serenades_per_serenading_class
+
+        # if a classroom has a serenade, kick out anyone who only receives non-serenades
+        # lightens the load on serenading groups
+        # decreases efficiency if enabled
+        self.NO_FREELOADERS_IN_SERENADING_CLASS = no_free_loaders
 
         """Constants"""
         # these two are mutually exclusive (you cannot be both a serenading group AND a non-serenading group)
@@ -367,10 +372,27 @@ class TicketSorter:
                 must_keep_classroom = self.must_keep_classroom(tickets)
 
                 if must_keep_classroom:
-                    # if classroom must be kept, make every other ticket stay in this class
-                    for ticket in tickets:
-                        ticket.choose_period(period)
-                        self.choose_classroom(ticket, classroom)
+                    if not self.NO_FREELOADERS_IN_SERENADING_CLASS:
+                        # if classroom must be kept, make every other ticket stay in this class
+                        for ticket in tickets:
+                            ticket.choose_period(period)
+                            self.choose_classroom(ticket, classroom)
+                    else:
+                        people_with_serenades = {ticket.recipient_name for ticket in tickets
+                                                 if ticket.item_type in ['Serenade', 'Special Serenade']}
+                        for ticket in tickets[:]:
+                            if ticket.recipient_name in people_with_serenades:
+                                # if person has serenade, they stay in the class
+                                ticket.choose_period(period)
+                                self.choose_classroom(ticket, classroom)
+                            else:
+                                if not ticket.has_no_choice():
+                                    print("FREELOADER")
+                                    # if a person has no serenades, they are a freeloader. KICK EM OUT
+                                    setattr(ticket, f'is_p{period}', False)
+                                    tickets.remove(ticket)
+                                else:
+                                    print("NO FREELOADER")
                 else:
                     # if classroom can be destroyed, remove tickets associated with it
                     # (destroy the actual classroom later)
@@ -660,17 +682,19 @@ class TicketSorter:
                 num_groups_per_campus.append(num_groups_in_campus)
 
             # fixes rounding issues
-            if num_groups_per_campus[0] + num_groups_per_campus[1] < num_groups:
-                campus_with_least_groups = min(range(len(num_groups_per_campus)), key=num_groups_per_campus.__getitem__)
-                num_groups_per_campus[campus_with_least_groups] += 1
-            if num_groups_per_campus[0] + num_groups_per_campus[1] > num_groups:
-                campus_with_least_groups = max(range(len(num_groups_per_campus)), key=num_groups_per_campus.__getitem__)
-                num_groups_per_campus[campus_with_least_groups] -= 1
+            if len(classrooms_per_campus) > 1:
+                if num_groups_per_campus[0] + num_groups_per_campus[1] < num_groups:
+                    campus_with_least_groups = min(range(len(num_groups_per_campus)), key=num_groups_per_campus.__getitem__)
+                    num_groups_per_campus[campus_with_least_groups] += 1
+                if num_groups_per_campus[0] + num_groups_per_campus[1] > num_groups:
+                    campus_with_least_groups = max(range(len(num_groups_per_campus)), key=num_groups_per_campus.__getitem__)
+                    num_groups_per_campus[campus_with_least_groups] -= 1
 
             """This part is highly inefficient because it evenly splits the classrooms without considering how many
             tickets are inside it"""
             groups_per_period[period].extend(self.split(classrooms_per_campus[0], num_groups_per_campus[0]))
-            groups_per_period[period].extend(self.split(classrooms_per_campus[1], num_groups_per_campus[1]))
+            if len(classrooms_per_campus) > 1:
+                groups_per_period[period].extend(self.split(classrooms_per_campus[1], num_groups_per_campus[1]))
 
         return groups_per_period
 
@@ -830,12 +854,12 @@ def print_statistics(ticket_sorter: TicketSorter):
             else:
                 num_non_serenades += 1
         num_classrooms = len([classrooms for key, classrooms in groupby(group, key=lambda a: a.chosen_classroom)])
-        print(f"\tClassrooms: {num_classrooms}\tSerenades: {num_serenades} + Non-serenades: {num_non_serenades}")
+        print(f"\tClassrooms: {num_classrooms} \tSerenades: {num_serenades} + Non-serenades: {num_non_serenades}")
 
     print("\nTickets per non-serenading group:")
     for group in ticket_sorter.output_non_serenading_groups_tickets:
         num_classrooms = len([classrooms for key, classrooms in groupby(group, key=lambda a: a.chosen_classroom)])
-        print(f"\tClassrooms: {num_classrooms}\tNon-serenades: {len(group)}")
+        print(f"\tClassrooms: {num_classrooms} \tNon-serenades: {len(group)}")
 
 
 def main():
@@ -848,9 +872,10 @@ def main():
     num_serenading_groups = get_int("Number of Serenading Groups: ")
     num_non_serenading_groups = get_int("Number of Non-Serenading Groups: ")
     max_serenades_per_class = get_int("Maximum number of serenades per class: ")
-    max_non_serenades_per_class = get_int("Maximum number of non-serenades per class "
-                                          "(only if class has at least one serenade):")
-    extra_special_serenades = get_bool("Prevent special serenades from being grouped with regular serenades? (Y/N):")
+    # max_non_serenades_per_class = get_int("Maximum number of non-serenades per class "
+    #                                       "(only if class has at least one serenade): ")
+    max_non_serenades_per_class = 0
+    extra_special_serenades = get_bool("Prevent special serenades from being grouped with regular serenades? (Y/N): ")
 
     # sort the tickets
     ticket_sorter = TicketSorter(tickets, num_serenading_groups, num_non_serenading_groups, max_serenades_per_class,
@@ -863,7 +888,8 @@ def main():
               "These files will be deleted if you continue. Stop the script now if you would like to keep them.")
         input("\nPress enter to continue...")
         for file in files:
-            os.remove(f"{Folders.output}{file}")
+            if file.endswith(".csv"):
+                os.remove(f"{Folders.output}{file}")
 
     # write tickets
     write_group_tickets(ticket_sorter.output_serenading_groups_tickets, 'S')
