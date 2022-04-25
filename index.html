@@ -198,6 +198,7 @@
             var names = JSON.parse(text);
         } catch {
             is_file_loaded = false;
+            validateFileLoaded();
             return;
         }
         // load names into dropdown
@@ -215,12 +216,22 @@
         validateFileLoaded();
 
         // allow adding ticket by pressing enter while inputting name
-        let search = document.querySelector('input[class="chosen-search-input"]');
-        search.addEventListener('keyup', function(event) {
+        let chosen_dropdown = document.querySelector('input[class="chosen-search-input"]');
+        chosen_dropdown.addEventListener('keyup', function(event) {
             if (event.keyCode === 13) {
-                addTicket();
+                if (fast_mode()){
+                    addTicket();
+                }
             }
         })
+        chosen_dropdown.addEventListener('keyup', function(event) {
+            if (event.keyCode === 13) {
+                if (!fast_mode() && !document.getElementById('recipient_name_chosen').classList.contains('chosen-with-drop')) {
+                    // if not in fast mode, only add ticket if name has been confirmed
+                    addTicket();
+                }
+            }
+        }, true)    // setting to true makes the listener happen first
     }
 
     function addTicket() {
