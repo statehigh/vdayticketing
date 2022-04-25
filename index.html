@@ -160,6 +160,7 @@
             
             <h3>Recipient Name</h3>
             <select id="recipient_name" style="min-width: 100px;">
+                <option id="placeholder_option">Load the name list first!</option>
             </select>
             <p class="error" id="recipient_name_error">*Required</p>
 
@@ -200,6 +201,7 @@
             return;
         }
         // load names into dropdown
+        document.getElementById('placeholder_option').remove();     // delete placeholder which tells you to load name list
         let dropdown = document.getElementById('recipient_name');
         dropdown.add(document.createElement("option"));
         for (let name of names) {
@@ -211,6 +213,14 @@
         document.querySelector('input[class="chosen-search-input"]').autocomplete = "tel-extension";
         is_file_loaded = true;
         validateFileLoaded();
+
+        // allow adding ticket by pressing enter while inputting name
+        let search = document.querySelector('input[class="chosen-search-input"]');
+        search.addEventListener('keyup', function(event) {
+            if (event.keyCode === 13) {
+                addTicket();
+            }
+        })
     }
 
     function addTicket() {
