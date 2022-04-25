@@ -775,7 +775,6 @@ def write_tickets(tickets: list):
         writer.writeheader()
         tickets_sorted_by_number = sorted(tickets, key=lambda a: int(a.ticket_number))
         for ticket in tickets_sorted_by_number:
-            print(ticket)
             writer.writerow(ticket.as_dict())
 
 
@@ -792,6 +791,53 @@ def write_group_tickets(tickets: list, group_prefix: str):
                 writer.writerow(ticket.as_dict())
 
 
+def print_statistics(ticket_sorter: TicketSorter):
+    print("\nNumber of Classroom Visits:")
+    classrooms_per_period = {1: 0, 2: 0, 3: 0, 4: 0}
+    for classroom in ticket_sorter.classrooms:
+        period = int(classroom[0])
+        classrooms_per_period[period] += 1
+    for period, number in classrooms_per_period.items():
+        print(f"\tPeriod {period}: {number}")
+    print(f"Total: {len(ticket_sorter.classrooms)}")
+
+    print("\nNumber of Tickets:")
+    item_type_distribution = {"Chocolate": 0, "Rose": 0, "Serenade": 0, "Special Serenade": 0}
+    for ticket in ticket_sorter.tickets:
+        item_type_distribution[ticket.item_type] += 1
+    for item_type, number in item_type_distribution.items():
+        print(f"\t{item_type}: {number}")
+    print(f"Total: {len(ticket_sorter.tickets)}")
+
+    print("\nNumber of items per classroom visit "
+          "(left is number of items, right is number of classrooms with that many items):")
+    classroom_size_distribution = {size: len(ticket_sorter.classrooms_grouped_by_length[size])
+                                   for size in sorted(ticket_sorter.classrooms_grouped_by_length.keys())}
+    total = 0
+    for size, num_classrooms in classroom_size_distribution.items():
+        print(f"\t{size}: {num_classrooms}")
+        total += size * num_classrooms
+    average_classroom_size = round(total / len(ticket_sorter.classrooms), 3)
+    print(f"Average: {average_classroom_size}")
+
+    print("\nTickets per serenading group:")
+    for group in ticket_sorter.output_serenading_groups_tickets:
+        num_serenades = 0
+        num_non_serenades = 0
+        for ticket in group:
+            if ticket.item_type == "Serenade" or ticket.item_type == "Special Serenade":
+                num_serenades += 1
+            else:
+                num_non_serenades += 1
+        num_classrooms = len([classrooms for key, classrooms in groupby(group, key=lambda a: a.chosen_classroom)])
+        print(f"\tClassrooms: {num_classrooms}\tSerenades: {num_serenades} + Non-serenades: {num_non_serenades}")
+
+    print("\nTickets per non-serenading group:")
+    for group in ticket_sorter.output_non_serenading_groups_tickets:
+        num_classrooms = len([classrooms for key, classrooms in groupby(group, key=lambda a: a.chosen_classroom)])
+        print(f"\tClassrooms: {num_classrooms}\tNon-serenades: {len(group)}")
+
+
 def main():
     # load data
     tickets_json = load_tickets()
@@ -804,7 +850,7 @@ def main():
     max_serenades_per_class = get_int("Maximum number of serenades per class: ")
     max_non_serenades_per_class = get_int("Maximum number of non-serenades per class "
                                           "(only if class has at least one serenade):")
-    extra_special_serenades = get_bool("Prevent special serenades from being grouped with regular serenades? (Y/N)")
+    extra_special_serenades = get_bool("Prevent special serenades from being grouped with regular serenades? (Y/N):")
 
     # sort the tickets
     ticket_sorter = TicketSorter(tickets, num_serenading_groups, num_non_serenading_groups, max_serenades_per_class,
@@ -815,7 +861,7 @@ def main():
     if len(files) > 0:
         print("WARNING: Residue output files have been detected (likely from a previous run). "
               "These files will be deleted if you continue. Stop the script now if you would like to keep them.")
-        input("Press enter to continue...")
+        input("\nPress enter to continue...")
         for file in files:
             os.remove(f"{Folders.output}{file}")
 
@@ -823,6 +869,11 @@ def main():
     write_group_tickets(ticket_sorter.output_serenading_groups_tickets, 'S')
     write_group_tickets(ticket_sorter.output_non_serenading_groups_tickets, 'N')
     write_tickets(ticket_sorter.tickets)
+
+    # print statistics
+    print_statistics(ticket_sorter)
+
+    input("\nPress enter to exit...")
 
 
 if __name__ == "__main__":
