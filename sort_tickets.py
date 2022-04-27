@@ -168,9 +168,9 @@ class ClassroomList(list):
         return classroom.original_name in map(lambda existing_classroom: existing_classroom.original_name, self)
 
     def __init__(self, *args):
+        super().__init__(self)
         tickets = TicketList(*args)
         self.generate_classrooms(tickets)
-        super().__init__(self)
 
     def generate_classrooms(self, tickets: TicketList):
         for ticket in tickets:
@@ -236,6 +236,9 @@ class Person:
         self.name = name
         self.tickets = TicketList()
 
+    def __repr__(self):
+        return self.name
+
     def num_items(self, items: tuple) -> int:
         num_items = 0
         for ticket in self.tickets:
@@ -246,6 +249,7 @@ class Person:
 
 class People(list):
     def __init__(self, tickets: TicketList):
+        super().__init__(self)
         for ticket in tickets:
             new_person = Person(ticket.recipient_name)
             if new_person in self:
@@ -254,7 +258,9 @@ class People(list):
             else:
                 new_person.tickets.append(ticket)
                 self.append(new_person)
-        super().__init__(self)
+
+    def __contains__(self, person: Person):
+        return person.name in map(lambda existing_person: existing_person.name, self)
 
     def get_existing_person(self, new_person: Person):
         # gets an existing person in the list, given a new Person object with the same name
@@ -271,11 +277,12 @@ class People(list):
                 people_with_x_num_tickets[person] = self[person]
         return people_with_x_num_tickets
 
-    def grouped_by_num_items(self, items: tuple) -> dict:
+    def grouped_by_num_items(self, items: tuple, reverse: bool = True) -> dict:
         """
         Groups people with x number of items of specified type
         Key: number of items of the specified type
         Value: list of people with that number of items of specified type
+        Also sorted by ascending order (can be reversed to descending)
         """
         people_grouped_by_num_items = {}
         for person in self:
@@ -284,6 +291,8 @@ class People(list):
                 people_grouped_by_num_items[num_items].append(person)
             else:
                 people_grouped_by_num_items[num_items] = [person]
+        people_grouped_by_num_items = {num_items: people_grouped_by_num_items[num_items]
+                                       for num_items in sorted(people_grouped_by_num_items.keys(), reverse=reverse)}
         return people_grouped_by_num_items
 
 
@@ -358,6 +367,8 @@ class TicketSorter:
         self.kicked_freeloaders = 0
         self.non_kicked_freeloaders = 0
 
+        self.test()
+
         """Methods"""
         # Critical methods must be kept or else the algorithm will fail
         # Important methods improve the algorithm but you could live without them
@@ -428,7 +439,10 @@ class TicketSorter:
                             setattr(other_ticket, f"is_p{ticket.chosen_period}", False)
                             classroom.remove(other_ticket)
 
-    def
+    def test(self):
+        people = People(self.tickets)
+        nice = people.grouped_by_num_items(("Serenade",))
+        print(nice)
 
     def limit_serenades_per_class(self):
         # ensures that each class doesn't have more than x number of serenades
