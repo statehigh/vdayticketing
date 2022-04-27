@@ -75,46 +75,170 @@ class Ticket:
         # return f"<{self.chosen_period}-{self.chosen_classroom} {special}>"
 
 
-class ClassroomNameProcessor:
-    def __init__(self):
+class TicketList(list):
+    def has_item_type(self, items=None) -> bool:
+        # checks if a list of tickets contains any ticket with a given item type(s)
+        for ticket in self:
+            if ticket.item_type in items:
+                return True
+        return False
+
+    @property
+    def has_serenades(self):
+        return self.has_item_type(('Serenade', 'Special Serenade'))
+
+    @property
+    def has_non_serenades(self):
+        return self.has_item_type(('Chocolate', 'Rose'))
+
+    def num_items(self, items: tuple) -> int:
+        # returns the number of serenades (including special) in a list of tickets
+        count = 0
+        for ticket in self:
+            if ticket.item_type in items:
+                count += 1
+        return count
+
+    @property
+    def num_serenades(self):
+        return self.num_items(("Serenade", "Special Serenade"))
+
+    def sort_by_person(self):
+        self.sort(key=lambda ticket: ticket.item_type)
+        self.sort(key=lambda ticket: ticket.recipient_name)
+
+
+class Classroom:
+    def __init__(self, orignal_name: str, period: int):
+        """Options"""
         # the REGEX used to determine what is a valid classroom name
         # if invalid, classroom will not be visited
         self.classroom_pattern = r"[A-Z]\d{3}"
 
-        """Note: these two dicts have their key/value the other way for original/new"""
-        # Dictionary with original name as key and new name as value
-        self.ORIGINAL_TO_NEW = {
+        # Lookup dict used to substitute names when cleaning
+        self.SUBSTITUTIONS = {
             'LIBA': 'B101',
             'LIBB': 'B102',
             'LIBC': 'B103',
             'LIBD': 'B104'
         }
 
-        # Dictionary with new name as key and original as value
-        self.lookup = {}
+        """Variables"""
+        self.tickets = TicketList()
 
-    def get_new_name(self, original_name: str, period: int):
-        if original_name in self.ORIGINAL_TO_NEW:
-            new_name = self.ORIGINAL_TO_NEW[original_name]
+        self.period = period
+
+        self.original_name = orignal_name       # the name as it appears on the timetable
+        self.clean_name = self.get_clean_name()
+        self.extended_name = f"{self.period}-{self.clean_name}"
+
+        self.is_valid_name = self.verify_classroom_name()
+
+    def get_clean_name(self):
+        if self.original_name in self.SUBSTITUTIONS:
+            clean_name = self.SUBSTITUTIONS[self.original_name]
         else:
-            new_name = original_name.replace('.', '')
-            new_name = re.sub("([A-Z])G", r"\g<1>0", new_name)
+            dotless_name = self.original_name.replace('.', '')
+            clean_name = re.sub("([A-Z])G", r"\g<1>0", dotless_name)
+        return clean_name
 
-        self.lookup[new_name] = original_name  # adds it to the dict so that it's easier to go back
+    def verify_classroom_name(self):
+        return re.match(rf"\d-{self.classroom_pattern}", self.clean_name()) is not None
 
-        return f"{period}-{new_name}"  # add the period prefix (very important)
+    def choose(self):
+        """Make every ticket in this classroom pick this classroom"""
+        for ticket in self.tickets:
+            ticket.choose_classroom(self)
 
-    def is_accepted_classroom(self, classroom_name: str) -> bool:
-        if re.match(rf"\d-{self.classroom_pattern}", classroom_name) is not None:
-            return True
-        else:
-            print(f"{classroom_name} has been rejected.")
-            return False
+    @property
+    def is_upper_campus(self):
+        block = self.clean_name[0]
+        return ord(block.upper()) <= ord('G')
 
-    def get_original_name(self, new_name: str):
-        new_name = new_name[2:]  # remove the period_prefix
-        original_name = self.lookup[new_name]  # use lookup to find original name
-        return original_name
+    @property
+    def must_keep(self):
+        for ticket in self.tickets:
+            if ticket.has_no_choice():
+                return True
+        return False
+
+
+class ClassroomList(list):
+    def __contains__(self, classroom: Classroom) -> bool:
+        return classroom.original_name in map(lambda existing_classroom: existing_classroom.original_name, self)
+
+    def __init__(self, *args):
+        self.generate_classrooms(*args)
+        super().__init__(self)
+
+    def generate_classrooms(self, tickets: TicketList):
+        for ticket in tickets:
+            for period in range(1, 5):
+                classroom_name = getattr(ticket, f"p{period}")
+                new_classroom = Classroom(classroom_name, period)
+                if new_classroom.is_valid_name:
+                    if new_classroom in self:
+                        existing_classroom = self.get_classroom(new_classroom)
+                        existing_classroom.tickets.append(ticket)
+                        setattr(ticket, f"p{period}", existing_classroom)
+                    else:
+                        new_classroom.tickets.append(ticket)
+                        setattr(ticket, f"{period}", new_classroom)
+                        self.append(new_classroom)
+
+    def get_classroom(self, new_classroom: Classroom):
+        for classroom in self:
+            if classroom.original_name == new_classroom.original_name:
+                return classroom
+        raise KeyError("Classroom not found.")
+
+    @property
+    def sorted_by_length(self) -> list:
+        return sorted(self, key=lambda classroom: len(classroom.tickets))
+
+    @property
+    def with_serenades(self) -> list:
+        # classrooms that contain at least one serenade
+        return [classroom for classroom in self if classroom.has_serenades()]
+
+    @property
+    def without_serenades(self) -> list:
+        # classrooms that contain ZERO serenades
+        return [classroom for classroom in self if not classroom.has_serenades()]
+
+    @property
+    def grouped_by_length(self) -> dict:
+        """
+        Key: number of tickets in a given classroom
+        Value: list of classrooms with that many tickets
+        E.g. {0: ["1-A204", "3-I115"], 1: ["1-F101", "2-G101"]}
+        """
+        classrooms_by_length = {}
+        for classroom in self:
+            tickets = classroom.tickets
+            length = len(tickets)
+            if length in classrooms_by_length:
+                classrooms_by_length[length].append(classroom)
+            else:
+                classrooms_by_length[length] = [classroom]
+        return classrooms_by_length
+
+    @staticmethod
+    def split(a, n):
+        k, m = divmod(len(a), n)
+        return list((a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)))
+
+
+class Group:
+    def __init__(self, number: int, is_serenaders: bool):
+        self.is_serenaders = is_serenaders
+        self.number = number
+        self.tickets = TicketList()
+
+    @property
+    def name(self):
+        initial = "S" if self.is_serenaders else "N"
+        return f"{initial}{self.number}"
 
 
 class TicketSorter:
@@ -147,17 +271,12 @@ class TicketSorter:
         self.NUM_SERENADING_GROUPS = serenading_groups  # the number of serenading groups
         self.NUM_NON_SERENADING_GROUPS = non_serenading_groups  # the number of groups which are NOT serenading
 
-        # the ASCII code corresponding to the letter G
-        # letters before this will be considered UPPER CAMPUS, and the other letters LOWER CAMPUS
-        # i.e. G block is upper campus but H block is lower campus
-        self.LAST_UPPER_CAMPUS_BLOCK_ASCII_CODE = ord('G')
-
         """Variables"""
         # List of every ticket
-        self.tickets = tickets
+        self.tickets = TicketList(tickets)
         # Key: every classroom separate by the period (e.g. 1-I1.17)
         # Value: a list of every Ticket object in that classroom
-        self.classrooms = {}
+        self.classrooms = ClassroomList(self.tickets)
         # tickets which have been moved in self.distribute_doubleups()
         # keeps track to prevent them from being moved again in self.balance_periods()
         self.distributed_tickets = []
@@ -172,9 +291,6 @@ class TicketSorter:
         self.output_non_serenading_groups_tickets = []
 
         """Utility"""
-        # Used to convert between new and original names
-        self.classroom_name_processor = ClassroomNameProcessor()
-
         self.kicked_freeloaders = 0
         self.non_kicked_freeloaders = 0
 
@@ -184,8 +300,7 @@ class TicketSorter:
         # Recommended methods don't have a meaningful impact but are nice to have
         # Optional methods usually reduce efficiency but make it better for the recipients and delivery groups
         # You may turn off optional methods if you wish to improve efficiency
-        self.pre_process_classroom_names()                      # important
-        self.get_all_classrooms()                               # critical
+        """self.get_all_classrooms()                               # critical
         if self.EXTRA_SPECIAL_SERENADES:
             self.make_special_serenades_extra_special()         # optional
         self.limit_serenades_per_class()                        # optional
@@ -194,10 +309,9 @@ class TicketSorter:
         self.eliminate_classrooms_without_serenades()           # critical
         self.distribute_doubleups()                             # optional
         self.balance_periods()                                  # optional
-        self.assign_tickets_to_groups()                         # important
-        self.post_process_classroom_names()                     # recommended
+        self.assign_tickets_to_groups()                         # important"""
 
-        print(f"Kicked: {self.kicked_freeloaders} Not Kicked: {self.non_kicked_freeloaders}")
+        # print(f"Kicked: {self.kicked_freeloaders} Not Kicked: {self.non_kicked_freeloaders}")
 
         """
         How the algorithm works
@@ -238,45 +352,6 @@ class TicketSorter:
             limit_non_serenades_per_serenading_class, and balance_periods) are all done separately and could be more 
             efficient if a more holistic approach is used, which lets them communicate which each other
         """
-
-    @property
-    def classrooms_sorted_by_length(self):
-        return sorted(self.classrooms.keys(), key=lambda classroom: len(self.classrooms[classroom]))
-
-    @property
-    def classrooms_with_serenades(self) -> dict:
-        classrooms_with_serenades = {}
-        for classroom, tickets in self.classrooms.items():
-            if self.has_item_type(tickets, ('Serenade', 'Special Serenade')):
-                classrooms_with_serenades[classroom] = tickets
-        return classrooms_with_serenades
-
-    @property
-    def classrooms_without_serenades(self) -> dict:
-        classrooms_without_serenades = {}
-        for classroom, tickets in self.classrooms.items():
-            if not self.has_item_type(tickets, ('Serenade', 'Special Serenade')):
-                classrooms_without_serenades[classroom] = tickets
-        return classrooms_without_serenades
-
-    def pre_process_classroom_names(self):
-        """
-        See the class: ClassroomNameProcessor
-        Changes classroom names to something more manageable
-        Classroom names that aren't recognised by ClassroomNameProcessor will be disabled
-        Adds the period number as a prefix to the classrooms
-        E.g. F101 -> 1-F101
-        E.g. LIBA -> 4-B101
-        """
-        for ticket in self.tickets:
-            for period in range(1, 5):
-                name = getattr(ticket, f'p{period}')
-                name = self.classroom_name_processor.get_new_name(name, period)
-                setattr(ticket, f'p{period}', name)
-
-                # if it doesn't recognise the classroom name, even after it has been changed, it disables it (e.g. OVAL)
-                if not self.classroom_name_processor.is_accepted_classroom(name):
-                    setattr(ticket, f'is_p{period}', False)
 
     def get_all_classrooms(self):
         """
@@ -351,15 +426,6 @@ class TicketSorter:
                                 if non_serenade_count <= self.MAX_NON_SERENADES_PER_SERENADING_CLASS:
                                     break
 
-    @staticmethod
-    def items_per_classroom(tickets: list, items: list) -> int:
-        # returns the number of serenades (including special) in a list of tickets
-        count = 0
-        for ticket in tickets:
-            if ticket.item_type in items:
-                count += 1
-        return count
-
     def eliminate_classrooms_with_serenades(self):
         self.eliminate_classrooms(self.classrooms_with_serenades, True)
 
@@ -419,41 +485,6 @@ class TicketSorter:
                         tickets.remove(ticket)
 
         self.cleanup_classrooms()
-
-    @staticmethod
-    def group_classrooms_by_length(classrooms: dict) -> dict:
-        """
-        Key: number of tickets in a given classroom
-        Value: list of classrooms with that many tickets
-        E.g. {0: ["1-A204", "3-I115"], 1: ["1-F101", "2-G101"]}
-        """
-        classrooms_by_length = {}
-        for classroom, tickets in classrooms.items():
-            length = len(tickets)
-            if length in classrooms_by_length:
-                classrooms_by_length[length].append(classroom)
-            else:
-                classrooms_by_length[length] = [classroom]
-        return classrooms_by_length
-
-    @property
-    def classrooms_grouped_by_length(self) -> dict:
-        return self.group_classrooms_by_length(self.classrooms)
-
-    def choose_classroom(self, ticket: Ticket, chosen_classroom: str):
-        for period in range(1, 5):
-            classroom = getattr(ticket, f"p{period}")
-            if classroom != chosen_classroom:
-                if classroom in self.classrooms:
-                    if ticket in self.classrooms[classroom]:
-                        self.classrooms[classroom].remove(ticket)
-
-    @staticmethod
-    def must_keep_classroom(tickets: list) -> bool:  # takes a list of tickets and determines if any has no other choice
-        for ticket in tickets:
-            if ticket.has_no_choice():
-                return True
-        return False
 
     def cleanup_classrooms(self):
         # delete empty classrooms from the dict
@@ -682,22 +713,23 @@ class TicketSorter:
                                      ord(classroom[2].upper()) > self.LAST_UPPER_CAMPUS_BLOCK_ASCII_CODE)]
             num_tickets_per_campus = []
             num_groups_per_campus = []
-            for classrooms_in_campus in classrooms_per_campus:
-                # gets the number of tickets in this campus
-                num_tickets_in_campus = len(
-                    [ticket for classroom in classrooms_in_campus for ticket in self.classrooms[classroom]])
-                num_tickets_per_campus.append(num_tickets_in_campus)
 
-                # allocates a number of groups to this campus based on the number of tickets
-                num_groups_in_campus = round(num_tickets_in_campus / num_tickets_in_period * num_groups)
-                # ensures that each campus has at least 1 group even if it was rounded to 0
-                if len(classrooms_per_campus) > 1:
+            if len(classrooms_per_campus) > 1:
+                for classrooms_in_campus in classrooms_per_campus:
+                    # gets the number of tickets in this campus
+                    num_tickets_in_campus = len(
+                        [ticket for classroom in classrooms_in_campus for ticket in self.classrooms[classroom]])
+                    num_tickets_per_campus.append(num_tickets_in_campus)
+
+                    # allocates a number of groups to this campus based on the number of tickets
+                    num_groups_in_campus = round(num_tickets_in_campus / num_tickets_in_period * num_groups)
+                    # ensures that each campus has at least 1 group even if it was rounded to 0
                     num_groups_in_campus = min(num_groups_in_campus, num_groups - 1)
                     num_groups_in_campus = max(num_groups_in_campus, 1)
-                num_groups_per_campus.append(num_groups_in_campus)
 
-            # fixes rounding issues
-            if len(classrooms_per_campus) > 1:
+                    num_groups_per_campus.append(num_groups_in_campus)
+
+                # fixes rounding issues
                 if num_groups_per_campus[0] + num_groups_per_campus[1] < num_groups:
                     campus_with_least_groups = min(range(len(num_groups_per_campus)),
                                                    key=num_groups_per_campus.__getitem__)
@@ -707,18 +739,14 @@ class TicketSorter:
                                                    key=num_groups_per_campus.__getitem__)
                     num_groups_per_campus[campus_with_least_groups] -= 1
 
-            """This part is highly inefficient because it evenly splits the classrooms without considering how many
-            tickets are inside it"""
-            groups_per_period[period].extend(self.split(classrooms_per_campus[0], num_groups_per_campus[0]))
-            if len(classrooms_per_campus) > 1:
+                """This part is highly inefficient because it evenly splits the classrooms without considering how many
+                tickets are inside it"""
+                groups_per_period[period].extend(self.split(classrooms_per_campus[0], num_groups_per_campus[0]))
                 groups_per_period[period].extend(self.split(classrooms_per_campus[1], num_groups_per_campus[1]))
+            else:
+                groups_per_period[period].extend(self.split(classrooms_per_campus[0], num_groups_per_campus[0]))
 
         return groups_per_period
-
-    @staticmethod
-    def split(a, n):
-        k, m = divmod(len(a), n)
-        return list((a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)))
 
     def assign_tickets_to_groups_by_period(self, groups_per_period: dict, num_groups: int):
         # assign classes to groups by randomly picking a set of classes from each period
@@ -744,26 +772,6 @@ class TicketSorter:
             groups_tickets.append(group_tickets)
 
         return groups_tickets
-
-    def get_group_size(self, group: list) -> int:
-        return sum([len(self.classrooms[classroom]) for classroom in group])
-
-    @staticmethod
-    def has_item_type(tickets: list, items=None) -> bool:
-        # checks if a list of tickets contains any ticket with a given item type(s)
-        if items is None:
-            items = ['Serenade', 'Special Serenade']
-
-        for ticket in tickets:
-            if ticket.item_type in items:
-                return True
-        return False
-
-    def post_process_classroom_names(self):
-        for ticket in self.tickets:
-            for period in range(1, 5):
-                name = getattr(ticket, f'p{period}')
-                setattr(ticket, f'p{period}', self.classroom_name_processor.get_original_name(name))
 
 
 def get_int(prompt: str) -> int:
@@ -911,7 +919,7 @@ def main():
     tickets = create_tickets(tickets_json, classes)
 
     # get options
-    num_serenading_groups = get_int("Number of Serenading Groups: ")
+    """num_serenading_groups = get_int("Number of Serenading Groups: ")
     num_non_serenading_groups = get_int("Number of Non-Serenading Groups: ")
     max_serenades_per_class = get_int("Maximum number of serenades per class: ")
     # max_non_serenades_per_class = get_int("Maximum number of non-serenades per class "
@@ -921,7 +929,9 @@ def main():
 
     # sort the tickets
     ticket_sorter = TicketSorter(tickets, num_serenading_groups, num_non_serenading_groups, max_serenades_per_class,
-                                 max_non_serenades_per_class, extra_special_serenades)
+                                 max_non_serenades_per_class, extra_special_serenades)"""
+
+    ticket_sorter = TicketSorter(tickets, 10, 10)
 
     # delete existing tickets if they already exist
     files = [f for f in os.listdir(Folders.output) if os.path.isfile(os.path.join(Folders.output, f))]
