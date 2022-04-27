@@ -109,20 +109,19 @@ class TicketList(list):
 
 
 class Classroom:
+    # the REGEX used to determine what is a valid classroom name
+    # if invalid, classroom will not be visited
+    classroom_pattern = r"[A-Z]\d{3}"
+
+    # Lookup dict used to substitute names when cleaning
+    SUBSTITUTIONS = {
+        'LIBA': 'B101',
+        'LIBB': 'B102',
+        'LIBC': 'B103',
+        'LIBD': 'B104'
+    }
+
     def __init__(self, orignal_name: str, period: int):
-        """Options"""
-        # the REGEX used to determine what is a valid classroom name
-        # if invalid, classroom will not be visited
-        self.classroom_pattern = r"[A-Z]\d{3}"
-
-        # Lookup dict used to substitute names when cleaning
-        self.SUBSTITUTIONS = {
-            'LIBA': 'B101',
-            'LIBB': 'B102',
-            'LIBC': 'B103',
-            'LIBD': 'B104'
-        }
-
         """Variables"""
         self.tickets = TicketList()
 
@@ -132,7 +131,10 @@ class Classroom:
         self.clean_name = self.get_clean_name()
         self.extended_name = f"{self.period}-{self.clean_name}"
 
-        self.is_valid_name = self.verify_classroom_name()
+        self.is_valid = self.verify_classroom_name()
+
+    def __repr__(self):
+        return self.extended_name
 
     def get_clean_name(self):
         if self.original_name in self.SUBSTITUTIONS:
@@ -143,7 +145,7 @@ class Classroom:
         return clean_name
 
     def verify_classroom_name(self):
-        return re.match(rf"\d-{self.classroom_pattern}", self.clean_name()) is not None
+        return re.match(self.classroom_pattern, self.clean_name) is not None
 
     def choose(self):
         """Make every ticket in this classroom pick this classroom"""
@@ -168,7 +170,8 @@ class ClassroomList(list):
         return classroom.original_name in map(lambda existing_classroom: existing_classroom.original_name, self)
 
     def __init__(self, *args):
-        self.generate_classrooms(*args)
+        tickets = TicketList(*args)
+        self.generate_classrooms(tickets)
         super().__init__(self)
 
     def generate_classrooms(self, tickets: TicketList):
@@ -176,14 +179,14 @@ class ClassroomList(list):
             for period in range(1, 5):
                 classroom_name = getattr(ticket, f"p{period}")
                 new_classroom = Classroom(classroom_name, period)
-                if new_classroom.is_valid_name:
+                if new_classroom.is_valid:
                     if new_classroom in self:
                         existing_classroom = self.get_classroom(new_classroom)
                         existing_classroom.tickets.append(ticket)
                         setattr(ticket, f"p{period}", existing_classroom)
                     else:
                         new_classroom.tickets.append(ticket)
-                        setattr(ticket, f"{period}", new_classroom)
+                        setattr(ticket, f"p{period}", new_classroom)
                         self.append(new_classroom)
 
     def get_classroom(self, new_classroom: Classroom):
