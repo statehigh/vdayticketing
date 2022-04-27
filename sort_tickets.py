@@ -83,11 +83,9 @@ class TicketList(list):
                 return True
         return False
 
-    @property
     def has_serenades(self):
         return self.has_item_type(('Serenade', 'Special Serenade'))
 
-    @property
     def has_non_serenades(self):
         return self.has_item_type(('Chocolate', 'Rose'))
 
@@ -181,7 +179,7 @@ class ClassroomList(list):
                 new_classroom = Classroom(classroom_name, period)
                 if new_classroom.is_valid:
                     if new_classroom in self:
-                        existing_classroom = self.get_classroom(new_classroom)
+                        existing_classroom = self.get_existing_classroom(new_classroom)
                         existing_classroom.tickets.append(ticket)
                         setattr(ticket, f"p{period}", existing_classroom)
                     else:
@@ -189,7 +187,8 @@ class ClassroomList(list):
                         setattr(ticket, f"p{period}", new_classroom)
                         self.append(new_classroom)
 
-    def get_classroom(self, new_classroom: Classroom):
+    def get_existing_classroom(self, new_classroom: Classroom):
+        # gets an existing classroom in the list, given a new Classroom object with the same name
         for classroom in self:
             if classroom.original_name == new_classroom.original_name:
                 return classroom
@@ -205,9 +204,9 @@ class ClassroomList(list):
         return [classroom for classroom in self if classroom.has_serenades()]
 
     @property
-    def without_serenades(self) -> list:
+    def with_non_serenades(self) -> list:
         # classrooms that contain ZERO serenades
-        return [classroom for classroom in self if not classroom.has_serenades()]
+        return [classroom for classroom in self if classroom.has_non_serenades()]
 
     @property
     def grouped_by_length(self) -> dict:
@@ -232,15 +231,71 @@ class ClassroomList(list):
         return list((a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)))
 
 
+class Person:
+    def __init__(self, name):
+        self.name = name
+        self.tickets = TicketList()
+
+    def num_items(self, items: tuple) -> int:
+        num_items = 0
+        for ticket in self.tickets:
+            if ticket.item_type in items:
+                num_items += 1
+        return num_items
+
+
+class People(list):
+    def __init__(self, tickets: TicketList):
+        for ticket in tickets:
+            new_person = Person(ticket.recipient_name)
+            if new_person in self:
+                existing_person = self.get_existing_person(new_person)
+                existing_person.tickets.append(ticket)
+            else:
+                new_person.tickets.append(ticket)
+                self.append(new_person)
+        super().__init__(self)
+
+    def get_existing_person(self, new_person: Person):
+        # gets an existing person in the list, given a new Person object with the same name
+        for existing_person in self:
+            if existing_person.name == new_person.name:
+                return existing_person
+        raise KeyError("Person not found")
+
+    def with_x_num_tickets(self, num_tickets: int) -> dict:
+        # filters the list to only be people with the specified number of tickets
+        people_with_x_num_tickets = {}
+        for person in self:
+            if len(self[person]) == num_tickets:
+                people_with_x_num_tickets[person] = self[person]
+        return people_with_x_num_tickets
+
+    def grouped_by_num_items(self, items: tuple) -> dict:
+        """
+        Groups people with x number of items of specified type
+        Key: number of items of the specified type
+        Value: list of people with that number of items of specified type
+        """
+        people_grouped_by_num_items = {}
+        for person in self:
+            num_items = person.num_items(items)
+            if num_items in people_grouped_by_num_items:
+                people_grouped_by_num_items[num_items].append(person)
+            else:
+                people_grouped_by_num_items[num_items] = [person]
+        return people_grouped_by_num_items
+
+
 class Group:
-    def __init__(self, number: int, is_serenaders: bool):
-        self.is_serenaders = is_serenaders
+    def __init__(self, number: int, is_serenading: bool):
+        self.is_serenading = is_serenading
         self.number = number
         self.tickets = TicketList()
 
     @property
     def name(self):
-        initial = "S" if self.is_serenaders else "N"
+        initial = "S" if self.is_serenading else "N"
         return f"{initial}{self.number}"
 
 
@@ -275,11 +330,17 @@ class TicketSorter:
         self.NUM_NON_SERENADING_GROUPS = non_serenading_groups  # the number of groups which are NOT serenading
 
         """Variables"""
-        # List of every ticket
+        # main set of tickets and classrooms
         self.tickets = TicketList(tickets)
-        # Key: every classroom separate by the period (e.g. 1-I1.17)
-        # Value: a list of every Ticket object in that classroom
         self.classrooms = ClassroomList(self.tickets)
+
+        # a duplicate set which is segregated from the main set
+        # the algorithm first passes through the serenading tickets and moves them here
+        #   (and any non-serenades for the same person)
+        # the remaining tickets in the main set are non-serenades
+        self.first_pass_tickets = TicketList()
+        self.first_pass_classrooms = ClassroomList()
+
         # tickets which have been moved in self.distribute_doubleups()
         # keeps track to prevent them from being moved again in self.balance_periods()
         self.distributed_tickets = []
@@ -356,42 +417,18 @@ class TicketSorter:
             efficient if a more holistic approach is used, which lets them communicate which each other
         """
 
-    def get_all_classrooms(self):
-        """
-        Goes through every ticket and adds its classrooms to a dict
-        Key: classroom_name
-        Value: list of tickets that have that classroom
-        E.g. {"1-F101": [TICKET, TICKET, TICKET]}
-        """
-        # first sort the tickets by the recipient's ID
-        # self.tickets.sort(key=lambda a: a.recipient_id)
-
-        for ticket in self.tickets:
-            for period in range(1, 5):
-                is_period = getattr(ticket, f'is_p{period}')
-                classroom = getattr(ticket, f'p{period}')
-                if is_period:
-                    if classroom not in self.classrooms:
-                        self.classrooms[classroom] = [ticket]
-                    else:
-                        self.classrooms[classroom].append(ticket)
-                else:
-                    if classroom not in self.classrooms:
-                        self.classrooms[classroom] = []
-
     def make_special_serenades_extra_special(self):
-        # ensures that special serenades are not grouped with regular serenades
+        # removes regular serenades from classrooms that have special serenades
         for ticket in self.tickets:
             if ticket.item_type == "Special Serenade":
                 classroom = getattr(ticket, f"p{ticket.chosen_period}")
-                for other_ticket in self.classrooms[classroom][:]:
+                for other_ticket in classroom.tickets:
                     if other_ticket.item_type == "Serenade":
-                        if not other_ticket.has_no_choice():
+                        if not other_ticket.has_no_choice:
                             setattr(other_ticket, f"is_p{ticket.chosen_period}", False)
-                            self.classrooms[classroom].remove(other_ticket)
-                        else:
-                            # print(f"{ticket.recipient} cannot have an extra special serenade :(")
-                            pass
+                            classroom.remove(other_ticket)
+
+    def
 
     def limit_serenades_per_class(self):
         # ensures that each class doesn't have more than x number of serenades
