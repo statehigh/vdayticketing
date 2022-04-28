@@ -30,7 +30,7 @@ class Ticket:
     @property
     def chosen_period(self) -> int:
         # if a ticket only has 1 period it can go to, return what it is
-        if self.has_no_choice():
+        if self.has_no_choice:
             for period in range(1, 5):
                 if getattr(self, f"is_p{period}"):
                     return period
@@ -39,7 +39,7 @@ class Ticket:
 
     @property
     def chosen_classroom(self):
-        if self.has_no_choice():
+        if self.has_no_choice:
             return getattr(self, f"p{self.chosen_period}")
 
     def choose_period(self, chosen_period: int):  # takes period as a number (1, 2, 3, 4) not as p1, p2, p3, p4
@@ -48,15 +48,25 @@ class Ticket:
                 setattr(self, f'is_p{period}', False)
         setattr(self, f'is_p{chosen_period}', True)  # sets chosen period as true
 
-    def has_no_choice(self) -> bool:
-        has_one_choice = False
+    @property
+    def num_classes_available(self) -> int:
+        num_classes = 0
         for period in range(1, 5):
-            if getattr(self, f'is_p{period}'):
-                if has_one_choice:
-                    return False
-                else:
-                    has_one_choice = True
-        return True
+            if getattr(self, f"is_p{period}"):
+                num_classes += 1
+        return num_classes
+
+    @property
+    def has_no_choice(self) -> bool:
+        return self.num_classes_available <= 1
+
+    @property
+    def available_classrooms(self) -> list:
+        return [getattr(self, f"p{period}") for period in range(1, 5) if getattr(self, f"is_p{period}")]
+
+    @property
+    def available_periods(self) -> list:
+        return [period for period in range(1, 5) if getattr(self, f"is_p{period}")]
 
     def as_dict(self):
         return {"Ticket Number": self.ticket_number, "Recipient Name": self.recipient_name,
@@ -71,7 +81,8 @@ class Ticket:
         p3 = '' if self.is_p3 else '\''
         p4 = '' if self.is_p4 else '\''
         item = "SS" if self.item_type == "Special Serenade" else self.item_type[0]
-        return f"<{self.ticket_number}: {self.recipient_name} {self.p1}{p1} {self.p2}{p2} {self.p3}{p3} {self.p4}{p4} {item}>"
+        return f"<{self.ticket_number}: {self.recipient_name} " \
+               f"{self.p1}{p1} {self.p2}{p2} {self.p3}{p3} {self.p4}{p4} {item}>"
         # return f"<{self.chosen_period}-{self.chosen_classroom} {special}>"
 
 
@@ -83,9 +94,11 @@ class TicketList(list):
                 return True
         return False
 
+    @property
     def has_serenades(self):
         return self.has_item_type(('Serenade', 'Special Serenade'))
 
+    @property
     def has_non_serenades(self):
         return self.has_item_type(('Chocolate', 'Rose'))
 
@@ -104,6 +117,37 @@ class TicketList(list):
     def sort_by_person(self):
         self.sort(key=lambda ticket: ticket.item_type)
         self.sort(key=lambda ticket: ticket.recipient_name)
+        return self
+
+    def sort_by_item_type(self):
+        self.sort(key=lambda ticket: ticket.item_type)
+        return self
+
+    def filter(self, items: tuple) -> list:
+        filtered = TicketList()
+        for ticket in self:
+            if ticket.item_type in items:
+                filtered.append(ticket)
+        return filtered
+
+    @property
+    def period_distribution(self) -> dict:
+        """Gets how many tickets each period has (ignores tickets which haven't been allocated yet)"""
+        distribution = {1: 0, 2: 0, 3: 0, 4: 0}
+        for ticket in self:
+            if ticket.has_no_choice:
+                period = ticket.chosen_period
+                distribution[period] += 1
+        return distribution
+
+    def reorder_periods_by_distribution(self, period_list: list) -> list:
+        """
+        Reorders a list of period numbers so that they are in ascending order of number of tickets
+        e.g. Input = [1, 2, 4]
+        e.g. Output = [4, 2, 1]
+        Given that distribution = {1: 10, 2: 5, 3: 7, 4: 2}
+        """
+        return sorted(period_list, key=lambda period: self.period_distribution[period])
 
 
 class Classroom:
@@ -131,6 +175,8 @@ class Classroom:
 
         self.is_valid = self.verify_classroom_name()
 
+        self.has_been_chosen = False
+
     def __repr__(self):
         return self.extended_name
 
@@ -149,6 +195,13 @@ class Classroom:
         """Make every ticket in this classroom pick this classroom"""
         for ticket in self.tickets:
             ticket.choose_classroom(self)
+        self.has_been_chosen = True
+
+    def reset(self):
+        # sets the classroom as not chosen and makes every ticket think the classroom is free
+        self.has_been_chosen = False
+        for ticket in self.tickets:
+            setattr(ticket, f"is_p{self.period}", True)
 
     @property
     def is_upper_campus(self):
@@ -312,11 +365,14 @@ class TicketSorter:
     def __init__(self, tickets: list, serenading_groups: int, non_serenading_groups: int,
                  max_serenades_per_class: int = 5, max_non_serenades_per_serenading_class: int = 0,
                  extra_special_serenades: bool = True, no_free_loaders: bool = True):
-        """Options"""
-        # if true, special serenades will not be grouped with regular serenades (ignores non-serenades)
-        # if true, more classes need to be visited (not significantly) but periods are more evenly distributed (usually)
-        # not guaranteed. sometimes there is no choice
+        """Options (Disclaimer: enabling an option does not guarantee that it is always true"""
+        # special serenades will not be grouped with regular serenades (ignores non-serenades)
+        # less efficient but nicer for those who receive special serenades
         self.EXTRA_SPECIAL_SERENADES = extra_special_serenades
+
+        # the algorithm will try to ensure that a person will have each of their serenades done separately
+        # less efficient but nicer for those who receive serenades
+        self.DISTRIBUTE_SERENADES = True
 
         # increasing these values increases the efficiency (decreases class visits required)
         # however, too a high a value make class visits fat (more than 20 items to hand out per class)
@@ -343,6 +399,8 @@ class TicketSorter:
         self.tickets = TicketList(tickets)
         self.classrooms = ClassroomList(self.tickets)
 
+        self.locked_in_classrooms = TicketList()
+
         # a duplicate set which is segregated from the main set
         # the algorithm first passes through the serenading tickets and moves them here
         #   (and any non-serenades for the same person)
@@ -367,66 +425,11 @@ class TicketSorter:
         self.kicked_freeloaders = 0
         self.non_kicked_freeloaders = 0
 
-        self.test()
-
         """Methods"""
-        # Critical methods must be kept or else the algorithm will fail
-        # Important methods improve the algorithm but you could live without them
-        # Recommended methods don't have a meaningful impact but are nice to have
-        # Optional methods usually reduce efficiency but make it better for the recipients and delivery groups
-        # You may turn off optional methods if you wish to improve efficiency
-        """self.get_all_classrooms()                               # critical
         if self.EXTRA_SPECIAL_SERENADES:
-            self.make_special_serenades_extra_special()         # optional
-        self.limit_serenades_per_class()                        # optional
-        self.limit_non_serenades_per_serenading_class()         # optional
-        self.eliminate_classrooms_with_serenades()              # critical
-        self.eliminate_classrooms_without_serenades()           # critical
-        self.distribute_doubleups()                             # optional
-        self.balance_periods()                                  # optional
-        self.assign_tickets_to_groups()                         # important"""
-
-        # print(f"Kicked: {self.kicked_freeloaders} Not Kicked: {self.non_kicked_freeloaders}")
-
-        """
-        How the algorithm works
-        1. Assume that classes in different periods are just completely different classes
-           (i.e. flatten temporal dimension into spatial dimension)
-        2. Assume that every person is at all four of their classes at once (at every period simultaneously)
-        3. Sort the classes by the number of tickets in that class
-        4. For each class, starting from those with the least tickets, do one of two things:
-           LOCK: If there is a ticket in this class that has no other choice (e.g. special serenade), it must be 
-                 visited. Therefore, every other ticket in that class should stay there. Delete every other class for 
-                 these people.
-           DELETE: If there is a class where everyone inside could be in a different class, delete this classroom and
-                   move on.
-        5. As step 4 continues for more classes, the number of choices decreases until everyone is only at one class.
-        
-        Note: There are also additional steps like limiting serenades per class, enabling extra special serenades and 
-            period balancing
-        
-        
-        Strengths:
-        -Minimises the number of class visits required
-        -Each class is interrupted max 1 time per period
-        -Fairly even distribution of items between periods (<5% disparity between emptiest and fullest period)
-        
-        Weaknesses:
-        -For people who receive multiple items, about 40% receive all of them at once, 
-            and about 50% receive them across 2 periods.
-        -Each class visit is very big, averaging about 6 items per class
-        -Most of the handing out is done by serenading groups
-        
-        Note: numbers were based on 2022 practice dataset of 931 tickets
-        
-        Possible Future Improvements:
-        -limit_serenades_per_class, limit_non_serenades_per_serenading_class, and balance_periods are arbitrary in the
-            order that they go through the tickets. this could be made less intelligent by doing it in an order which
-            ensures a more balanced distribution or more efficiency
-        -the additional steps (distribute_doubleups, limit_serenades_per_class, 
-            limit_non_serenades_per_serenading_class, and balance_periods) are all done separately and could be more 
-            efficient if a more holistic approach is used, which lets them communicate which each other
-        """
+            self.make_special_serenades_extra_special()
+        if self.DISTRIBUTE_SERENADES:
+            self.distribute_serenades()
 
     def make_special_serenades_extra_special(self):
         # removes regular serenades from classrooms that have special serenades
@@ -437,12 +440,27 @@ class TicketSorter:
                     if other_ticket.item_type == "Serenade":
                         if not other_ticket.has_no_choice:
                             setattr(other_ticket, f"is_p{ticket.chosen_period}", False)
-                            classroom.remove(other_ticket)
+                            classroom.tickets.remove(other_ticket)
 
-    def test(self):
-        people = People(self.tickets)
-        nice = people.grouped_by_num_items(("Serenade",))
-        print(nice)
+    def distribute_serenades(self):
+        for num_serenades, people in People(self.tickets).grouped_by_num_items(("Serenade",)).items():
+            if num_serenades > 0:
+                for person in people:
+                    """Warning: this code assumes that the all serenade tickets for the same person have the same
+                    availability (at this point)"""
+                    serenade_ticket = person.tickets.filter(("Serenade",))[0]
+                    num_classes = serenade_ticket.num_classes_available
+                    if num_classes <= num_serenades:
+                        # if number of classes available is less than number of serenades, let every class be visited
+                        available_periods = self.tickets.reorder_periods_by_distribution(
+                            serenade_ticket.available_periods)
+                        if len(available_periods) != num_classes:
+                            raise Exception("Two values should be equal!")
+                        all_tickets = person.tickets.sort_by_item_type()
+                        for index, ticket in enumerate(all_tickets):
+                            # evenly distribute the tickets among the available classes
+                            chosen_period = available_periods[index % len(available_periods)]
+                            ticket.choose_period(chosen_period)
 
     def limit_serenades_per_class(self):
         # ensures that each class doesn't have more than x number of serenades
